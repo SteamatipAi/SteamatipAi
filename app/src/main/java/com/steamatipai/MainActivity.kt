@@ -52,7 +52,9 @@ fun SteamaTipAiApp() {
             TrackSelectionScreen(
                 selectedDate = date,
                 onTracksSelected = { tracks ->
-                    navController.navigate("results/$date/${tracks.joinToString(",")}")
+                    // Pass the full track objects as a serializable format
+                    val trackData = tracks.joinToString("|") { "${it.key}::${it.name}::${it.state}" }
+                    navController.navigate("results/$date/$trackData")
                 },
                 onBack = {
                     navController.popBackStack()
@@ -62,10 +64,21 @@ fun SteamaTipAiApp() {
         
         composable("results/{date}/{tracks}") { backStackEntry ->
             val date = backStackEntry.arguments?.getString("date") ?: ""
-            val tracks = backStackEntry.arguments?.getString("tracks") ?: ""
+            val tracksData = backStackEntry.arguments?.getString("tracks") ?: ""
+            
+            // Parse the track data back into proper format
+            val selectedTracks = tracksData.split("|").filter { it.isNotEmpty() }.map { trackData ->
+                val parts = trackData.split("::")
+                if (parts.size >= 3) {
+                    parts[0] // Return the full key (e.g., "2025Aug30,NSW,Rosehill Gardens")
+                } else {
+                    trackData // Fallback to original data
+                }
+            }
+            
             ResultsScreen(
                 selectedDate = date,
-                selectedTracks = tracks.split(",").filter { it.isNotEmpty() },
+                selectedTracks = selectedTracks,
                 onBack = {
                     navController.popBackStack()
                 }

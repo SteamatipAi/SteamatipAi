@@ -8,7 +8,7 @@ import kotlin.math.min
 class ScoringEngine {
     
     companion object {
-        const val TOTAL_POINTS = 100.0
+        const val TOTAL_POINTS = 116.0  // Updated for 9 laws
         const val RECENT_FORM_WEIGHT = 25.0
         const val CLASS_SUITABILITY_WEIGHT = 25.0
         const val TRACK_DISTANCE_WEIGHT = 20.0
@@ -17,6 +17,7 @@ class ScoringEngine {
         const val JOCKEY_WEIGHT = 8.0
         const val TRAINER_WEIGHT = 8.0
         const val COMBINATION_WEIGHT = 8.0
+        const val TRACK_CONDITION_WEIGHT = 8.0  // NEW LAW 9
         
         const val SPELL_THRESHOLD_WEEKS = 12
     }
@@ -48,12 +49,18 @@ class ScoringEngine {
     fun calculateTotalScore(
         horse: Horse,
         race: Race,
-        horseForm: HorseForm,
+        horseForm: HorseForm?,
         jockeyRankings: List<JockeyPremiership>,
         trainerRankings: List<TrainerPremiership>
-    ): ScoredHorse {
+    ): ScoredHorse? { // Changed return type to nullable
         
         println("🏆 STARTING SCORING FOR: ${horse.name} in Race ${race.raceNumber} at ${race.venue}")
+        
+        // NO FALLBACK - Only score horses with real form data
+        if (horseForm == null) {
+            println("❌ ${horse.name} - NO REAL FORM DATA AVAILABLE - EXCLUDING FROM SCORING")
+            return null
+        }
         
         // Check if horse is returning from spell or first-up
         val isReturningFromSpell = isReturningFromSpell(horse, horseForm)
@@ -87,7 +94,7 @@ class ScoringEngine {
                 )
             }
             else -> {
-                println("🏆 ${horse.name} - USING NORMAL HORSE SCORING (all 8 laws)")
+                println("🏆 ${horse.name} - USING NORMAL HORSE SCORING (all 9 laws)")
                 // Apply all normal laws
                 val recentForm = calculateRecentFormScore(horseForm)
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm)
@@ -99,9 +106,10 @@ class ScoringEngine {
                 val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
                 val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm)
                 val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val trackCondition = calculateTrackConditionScore(horse, race, horseForm)  // NEW LAW 9
                 
                 val totalScore = recentForm + classSuitability + trackDistance + 
-                    sectionalTime + barrier + jockey + trainer + combination
+                    sectionalTime + barrier + jockey + trainer + combination + trackCondition
                 
                 // COMPREHENSIVE SCORING LOGGING
                 println("🏆 ${horse.name} SCORING BREAKDOWN:")
@@ -115,6 +123,7 @@ class ScoringEngine {
                 println("   🤝 Law 8 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
                 println("   🤝 Law 8 - Jockey-Trainer Partnership: ${String.format("%.1f", jockeyTrainerPartnership)} points")
                 println("   🔗 Law 8 - Total Combination: ${String.format("%.1f", combination)} points")
+                println("   🌦️ Law 9 - Track Condition: ${String.format("%.1f", trackCondition)} points")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", totalScore)} points")
                 println("   ─".repeat(50))
                 
@@ -130,6 +139,7 @@ class ScoringEngine {
                     jockeyHorseRelationship = jockeyHorseRelationship,
                     jockeyTrainerPartnership = jockeyTrainerPartnership,
                     combinationScore = combination,
+                    trackCondition = trackCondition,  // NEW LAW 9
                     totalScore = totalScore
                 )
                 
@@ -662,6 +672,62 @@ class ScoringEngine {
         println("🏇 Jockey-Trainer Partnership: ${horse.jockey} has ridden for $currentTrainer $trainerRides times in last 5 starts = $score points")
         
         return score
+    }
+    
+    /**
+     * Law 9: Track Condition Suitability (8 points)
+     * Assesses horse's success on similar track conditions
+     */
+    private fun calculateTrackConditionScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
+        if (horseForm.last5Races.isEmpty()) return 0.0
+        
+        val currentCondition = race.trackCondition ?: return 0.0
+        val conditionCategory = getTrackConditionCategory(currentCondition)
+        
+        if (conditionCategory == null) {
+            println("🌦️ ${horse.name} - Unknown track condition: $currentCondition")
+            return 0.0
+        }
+        
+        var bestResult = 0.0
+        
+        // Check last 5 races for similar track conditions
+        horseForm.last5Races.forEach { raceResult ->
+            val raceCondition = raceResult.trackCondition ?: return@forEach
+            val raceConditionCategory = getTrackConditionCategory(raceCondition)
+            
+            if (raceConditionCategory == conditionCategory) {
+                // Same condition category - score based on position
+                val positionScore = when (raceResult.position) {
+                    1 -> 8.0  // Win on similar condition
+                    2 -> 5.0  // 2nd on similar condition  
+                    3 -> 3.0  // 3rd on similar condition
+                    else -> 0.0
+                }
+                
+                // Take the highest score achieved
+                if (positionScore > bestResult) {
+                    bestResult = positionScore
+                    println("🌦️ ${horse.name} - ${raceResult.position}${getPositionSuffix(raceResult.position)} on ${raceCondition} (${conditionCategory}) = ${positionScore} points")
+                }
+            }
+        }
+        
+        println("🌦️ ${horse.name} - Track condition score: ${bestResult} points (${conditionCategory} conditions)")
+        return bestResult
+    }
+    
+    /**
+     * Categorize track conditions for comparison
+     */
+    private fun getTrackConditionCategory(condition: String): String? {
+        return when {
+            condition.contains("Firm") || condition.contains("Good") -> "Firm/Good"
+            condition.contains("Soft") -> "Soft"
+            condition.contains("Heavy") -> "Heavy"
+            condition.contains("Synthetic") -> "Synthetic"
+            else -> null
+        }
     }
     
     /**

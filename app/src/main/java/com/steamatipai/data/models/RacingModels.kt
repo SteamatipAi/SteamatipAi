@@ -25,7 +25,9 @@ data class Horse(
     val earnings: Double,
     val score: Double = 0.0,
     val rank: Int = 0,
-    val isStandout: Boolean = false
+    val isStandout: Boolean = false,
+    val horseCode: String? = null, // Store the extracted horse code from Racing Australia
+    val raceEntry: String? = null // Store the actual race entry parameter from Racing Australia link
 )
 
 // Extended horse with scoring breakdown
@@ -51,6 +53,7 @@ data class ScoreBreakdown(
     val jockeyHorseRelationship: Double = 0.0,
     val jockeyTrainerPartnership: Double = 0.0,
     val combinationScore: Double = 0.0,
+    val trackCondition: Double = 0.0,  // NEW LAW 9
     val totalScore: Double = 0.0
 )
 
@@ -72,14 +75,17 @@ data class Race(
     val time: String,
     val venue: String,
     val horses: List<Horse> = emptyList(),
-    val date: Date
+    val date: Date,
+    val raceEntryCode: String? = null // Racing Australia race entry code for horse form URLs
 )
 
 // Race result with top selections
 data class RaceResult(
     val race: Race,
     val topSelections: List<ScoredHorse>,
-    val processingTime: Long
+    val processingTime: Long = 0,
+    val allHorses: List<ScoredHorse> = emptyList(),
+    val error: String? = null
 )
 
 // Track information
@@ -153,6 +159,7 @@ data class RaceResultDetail(
     val raceClass: String?,
     val track: String?,
     val distance: Int?,
+    val trackCondition: String?,  // Added for Law 9
     val sectionalTime: Double?,
     val date: Date?,
     val jockey: String?,

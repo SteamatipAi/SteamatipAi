@@ -1,40 +1,43 @@
 package com.steamatipai.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import com.steamatipai.R
 import com.steamatipai.data.models.Track
 import com.steamatipai.service.RaceAnalysisService
-import com.steamatipai.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun TrackSelectionScreen(
     selectedDate: String,
-    onTracksSelected: (List<String>) -> Unit,
+    onTracksSelected: (List<Track>) -> Unit, // Changed from List<String> to List<Track>
     onBack: () -> Unit
 ) {
     var availableTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var selectedTracks by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedTracks by remember { mutableStateOf<Set<String>>(emptySet()) } // Keep as keys for UI state
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -52,7 +55,9 @@ fun TrackSelectionScreen(
             println("📅 Parsed date: $date")
             
             println("🔍 Calling raceAnalysisService.getAvailableTracks...")
-            val tracks = raceAnalysisService.getAvailableTracks(date)
+            val tracks = withContext(Dispatchers.IO) {
+                raceAnalysisService.getAvailableTracks(date)
+            }
             println("📊 Received ${tracks.size} tracks from service")
             
             availableTracks = tracks
@@ -61,7 +66,7 @@ fun TrackSelectionScreen(
                 println("⚠️ No tracks found, setting error")
                 error = "No tracks available for this date. This usually means:\n\n1. No racing scheduled for today\n2. Network connection issue\n3. Racing Australia website is down\n\nPlease check your internet connection and try again."
             } else {
-                println("✅ Successfully loaded ${tracks.size} tracks")
+                println("✅ Successfully loaded ${availableTracks.size} tracks")
                 // Don't fetch race counts here - this was causing the long delay
                 // Race counts will be fetched when actually analyzing the selected tracks
             }
@@ -187,6 +192,48 @@ fun TrackSelectionScreen(
                     }
                 }
             }
+        } else if (availableTracks.isEmpty()) {
+            // No tracks and no error - this means no real tracks were found
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No Racing Tracks Available",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color(0xFFFFD700) // Gold color
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No real racing tracks were found for the selected date.\n\nThis could mean:\n• No racing scheduled for today\n• Racing Australia website is down\n• Network connection issues\n\nPlease check your internet connection and try again later.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            // Retry loading
+                            isLoading = true
+                            error = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Black,
+                            contentColor = Color(0xFFFFD700) // Gold color
+                        ),
+                        border = BorderStroke(2.dp, Color(0xFFFFD700)) // Gold border
+                    ) {
+                        Text(
+                            "Retry",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD700) // Gold color
+                        )
+                    }
+                }
+            }
         } else {
             // Track List
             LazyColumn(
@@ -228,7 +275,13 @@ fun TrackSelectionScreen(
 
             // Analyze Button
             Button(
-                onClick = { onTracksSelected(selectedTracks.toList()) },
+                onClick = { 
+                    // Convert selected track keys to actual track objects
+                    val selectedTrackObjects = availableTracks.filter { track ->
+                        selectedTracks.contains(track.key)
+                    }
+                    onTracksSelected(selectedTrackObjects) // Pass actual track objects
+                },
                 enabled = selectedTracks.isNotEmpty(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -287,7 +340,7 @@ private fun TrackItem(
             ) {
                 if (isSelected) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
                         tint = Color(0xFFFFD700) // Gold color
                     )
