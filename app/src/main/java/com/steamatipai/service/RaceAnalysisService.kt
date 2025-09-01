@@ -32,16 +32,24 @@ class RaceAnalysisService(
         val allResults = mutableListOf<RaceResult>()
         
         try {
-            // For now, use empty lists for rankings until we implement the scraping
-            val jockeyRankings = emptyList<JockeyPremiership>()
-            val trainerRankings = emptyList<TrainerPremiership>()
-            
-            println("👥 Jockey rankings: ${jockeyRankings.size}")
-            println("👨‍🏫 Trainer rankings: ${trainerRankings.size}")
-            
             // Analyze each track
             tracks.forEach { track ->
-                println("\n🏁 ANALYZING TRACK: ${track.name}")
+                println("\n🏁 ANALYZING TRACK: ${track.name} (${track.state})")
+                
+                // Fetch premiership data for this track's state
+                val jockeyRankings = scrapingService.fetchJockeyPremiership(track.state)
+                val trainerRankings = scrapingService.fetchTrainerPremiership(track.state)
+                
+                println("👥 Jockey rankings for ${track.state}: ${jockeyRankings.size}")
+                println("👨‍🏫 Trainer rankings for ${track.state}: ${trainerRankings.size}")
+                
+                // Show top 5 jockeys and trainers for debugging
+                jockeyRankings.take(5).forEachIndexed { index, jockey ->
+                    println("   Jockey ${index + 1}: ${jockey.name} (${jockey.wins} wins)")
+                }
+                trainerRankings.take(5).forEachIndexed { index, trainer ->
+                    println("   Trainer ${index + 1}: ${trainer.name} (${trainer.wins} wins)")
+                }
                 
                 try {
                     val races = scrapingService.scrapeTrackRaces(track, date)

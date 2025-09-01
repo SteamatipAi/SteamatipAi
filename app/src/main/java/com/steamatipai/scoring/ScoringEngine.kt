@@ -317,14 +317,19 @@ class ScoringEngine {
      * Points based on jockey's premiership ranking
      */
     private fun calculateJockeyScore(horse: Horse, jockeyRankings: List<JockeyPremiership>): Double {
+        println("🏇 DEBUG: Looking for jockey '${horse.jockey}' in ${jockeyRankings.size} rankings")
         val jockeyRank = getJockeyRank(horse.jockey, jockeyRankings)
+        println("🏇 DEBUG: Jockey '${horse.jockey}' rank: $jockeyRank (max rank: ${jockeyRankings.maxOfOrNull { it.rank } ?: 0})")
         
-        return when {
+        val score = when {
             jockeyRank in 1..5 -> JOCKEY_WEIGHT
             jockeyRank in 6..10 -> 5.0
             jockeyRank in 11..20 -> 2.0
             else -> 0.0
         }
+        
+        println("🏇 DEBUG: Jockey score for '${horse.jockey}': $score points")
+        return score
     }
     
     /**
@@ -332,14 +337,19 @@ class ScoringEngine {
      * Points based on trainer's premiership ranking
      */
     private fun calculateTrainerScore(horse: Horse, trainerRankings: List<TrainerPremiership>): Double {
+        println("👨‍🏫 DEBUG: Looking for trainer '${horse.trainer}' in ${trainerRankings.size} rankings")
         val trainerRank = getTrainerRank(horse.trainer, trainerRankings)
+        println("👨‍🏫 DEBUG: Trainer '${horse.trainer}' rank: $trainerRank (max rank: ${trainerRankings.maxOfOrNull { it.rank } ?: 0})")
         
-        return when {
+        val score = when {
             trainerRank in 1..5 -> TRAINER_WEIGHT
             trainerRank in 6..10 -> 5.0
             trainerRank in 11..20 -> 2.0
             else -> 0.0
         }
+        
+        println("👨‍🏫 DEBUG: Trainer score for '${horse.trainer}': $score points")
+        return score
     }
     
     /**
@@ -533,7 +543,15 @@ class ScoringEngine {
     }
     
     private fun getJockeyRank(jockeyName: String, rankings: List<JockeyPremiership>): Int {
-        return rankings.find { it.name.equals(jockeyName, ignoreCase = true) }?.rank ?: Int.MAX_VALUE
+        val found = rankings.find { it.name.equals(jockeyName, ignoreCase = true) }
+        if (found != null) {
+            println("🏇 DEBUG: Found jockey '${jockeyName}' at rank ${found.rank}")
+        } else {
+            println("🏇 DEBUG: Jockey '${jockeyName}' NOT FOUND in rankings")
+            // Show first few ranking names for debugging
+            println("🏇 DEBUG: Available jockeys (first 10): ${rankings.take(10).map { it.name }}")
+        }
+        return found?.rank ?: Int.MAX_VALUE
     }
     
     // TRIAL PERFORMANCE SCORE FUNCTION REMOVED
@@ -566,7 +584,15 @@ class ScoringEngine {
     }
     
     private fun getTrainerRank(trainerName: String, rankings: List<TrainerPremiership>): Int {
-        return rankings.find { it.name.equals(trainerName, ignoreCase = true) }?.rank ?: Int.MAX_VALUE
+        val found = rankings.find { it.name.equals(trainerName, ignoreCase = true) }
+        if (found != null) {
+            println("👨‍🏫 DEBUG: Found trainer '${trainerName}' at rank ${found.rank}")
+        } else {
+            println("👨‍🏫 DEBUG: Trainer '${trainerName}' NOT FOUND in rankings")
+            // Show first few ranking names for debugging
+            println("👨‍🏫 DEBUG: Available trainers (first 10): ${rankings.take(10).map { it.name }}")
+        }
+        return found?.rank ?: Int.MAX_VALUE
     }
     
     /**

@@ -1493,4 +1493,156 @@ class ScrapingService {
             ""
         }
     }
+
+    /**
+     * Fetch state jockey premiership data
+     */
+    suspend fun fetchJockeyPremiership(state: String): List<JockeyPremiership> {
+        return try {
+            println("🏆 Fetching jockey premiership for state: $state")
+            
+            val url = "https://www.racingaustralia.horse/FreeServices/Premierships.aspx?State=$state"
+            println("🌐 Jockey premiership URL: $url")
+            
+            val request = NetworkConfig.createRequestBuilder(url).build()
+            val response = httpClient.newCall(request).execute()
+            
+            if (!response.isSuccessful) {
+                println("❌ Failed to fetch jockey premiership: ${response.code}")
+                return emptyList()
+            }
+            
+            val html = response.body?.string() ?: ""
+            if (html.isEmpty()) {
+                println("❌ Empty response from jockey premiership")
+                return emptyList()
+            }
+            
+            val doc = Jsoup.parse(html)
+            val jockeys = mutableListOf<JockeyPremiership>()
+            
+            // Parse the premiership table
+            val tableRows = doc.select("table tr")
+            println("🔍 Found ${tableRows.size} table rows in jockey premiership")
+            
+            tableRows.forEachIndexed { index, row ->
+                if (index == 0) return@forEachIndexed // Skip header row
+                
+                val cells = row.select("td")
+                if (cells.size >= 8) {
+                    try {
+                        val jockeyName = cells[0].text().trim()
+                        val wins = cells[1].text().trim().toIntOrNull() ?: 0
+                        val seconds = cells[2].text().trim().toIntOrNull() ?: 0
+                        val thirds = cells[3].text().trim().toIntOrNull() ?: 0
+                        val fourths = cells[4].text().trim().toIntOrNull() ?: 0
+                        val fifths = cells[5].text().trim().toIntOrNull() ?: 0
+                        val prizeMoney = cells[6].text().trim()
+                        val strikeRate = cells[7].text().trim()
+                        val starts = cells[8].text().trim().toIntOrNull() ?: 0
+                        
+                        val jockey = JockeyPremiership(
+                            name = jockeyName,
+                            rank = index,
+                            wins = wins,
+                            places = seconds + thirds, // Combine 2nd and 3rd as places
+                            points = wins * 3 + seconds * 2 + thirds, // Calculate points
+                            totalRides = starts,
+                            winPercentage = if (starts > 0) (wins.toDouble() / starts) * 100 else 0.0
+                        )
+                        
+                        jockeys.add(jockey)
+                        println("✅ Parsed jockey: $jockeyName (Rank ${index})")
+                        
+                    } catch (e: Exception) {
+                        println("❌ Error parsing jockey row $index: ${e.message}")
+                    }
+                }
+            }
+            
+            println("🏆 Successfully fetched ${jockeys.size} jockeys from $state premiership")
+            jockeys
+            
+        } catch (e: Exception) {
+            println("❌ Error fetching jockey premiership: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    /**
+     * Fetch state trainer premiership data
+     */
+    suspend fun fetchTrainerPremiership(state: String): List<TrainerPremiership> {
+        return try {
+            println("🏆 Fetching trainer premiership for state: $state")
+            
+            val url = "https://www.racingaustralia.horse/FreeServices/Premierships.aspx?State=$state&Season=2025&Table=Trainer"
+            println("🌐 Trainer premiership URL: $url")
+            
+            val request = NetworkConfig.createRequestBuilder(url).build()
+            val response = httpClient.newCall(request).execute()
+            
+            if (!response.isSuccessful) {
+                println("❌ Failed to fetch trainer premiership: ${response.code}")
+                return emptyList()
+            }
+            
+            val html = response.body?.string() ?: ""
+            if (html.isEmpty()) {
+                println("❌ Empty response from trainer premiership")
+                return emptyList()
+            }
+            
+            val doc = Jsoup.parse(html)
+            val trainers = mutableListOf<TrainerPremiership>()
+            
+            // Parse the premiership table
+            val tableRows = doc.select("table tr")
+            println("🔍 Found ${tableRows.size} table rows in trainer premiership")
+            
+            tableRows.forEachIndexed { index, row ->
+                if (index == 0) return@forEachIndexed // Skip header row
+                
+                val cells = row.select("td")
+                if (cells.size >= 8) {
+                    try {
+                        val trainerName = cells[0].text().trim()
+                        val wins = cells[1].text().trim().toIntOrNull() ?: 0
+                        val seconds = cells[2].text().trim().toIntOrNull() ?: 0
+                        val thirds = cells[3].text().trim().toIntOrNull() ?: 0
+                        val fourths = cells[4].text().trim().toIntOrNull() ?: 0
+                        val fifths = cells[5].text().trim().toIntOrNull() ?: 0
+                        val prizeMoney = cells[6].text().trim()
+                        val strikeRate = cells[7].text().trim()
+                        val starts = cells[8].text().trim().toIntOrNull() ?: 0
+                        
+                        val trainer = TrainerPremiership(
+                            name = trainerName,
+                            rank = index,
+                            wins = wins,
+                            places = seconds + thirds, // Combine 2nd and 3rd as places
+                            points = wins * 3 + seconds * 2 + thirds, // Calculate points
+                            totalRunners = starts,
+                            winPercentage = if (starts > 0) (wins.toDouble() / starts) * 100 else 0.0
+                        )
+                        
+                        trainers.add(trainer)
+                        println("✅ Parsed trainer: $trainerName (Rank ${index})")
+                        
+                    } catch (e: Exception) {
+                        println("❌ Error parsing trainer row $index: ${e.message}")
+                    }
+                }
+            }
+            
+            println("🏆 Successfully fetched ${trainers.size} trainers from $state premiership")
+            trainers
+            
+        } catch (e: Exception) {
+            println("❌ Error fetching trainer premiership: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 } 
