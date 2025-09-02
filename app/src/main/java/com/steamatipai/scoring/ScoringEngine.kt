@@ -155,19 +155,29 @@ class ScoringEngine {
      * Considers last 5 races for wins, places, and last start margin bonus
      */
     private fun calculateRecentFormScore(horseForm: HorseForm): Double {
-        if (horseForm.last5Races.isEmpty()) return 0.0
+        if (horseForm.last5Races.isEmpty()) {
+            println("🏇 Law 1: No recent races found")
+            return 0.0
+        }
         
         var score = 0.0
         val last5Races = horseForm.last5Races.take(5)
+        println("🏇 Law 1: Processing ${last5Races.size} recent races")
         
         last5Races.forEachIndexed { index, race ->
             val recency = 5.0 - index // More recent = higher multiplier
             val multiplier = recency / 5.0
             
-            when (race.position) {
-                1 -> score += 5.0 * multiplier // Win bonus
-                2, 3 -> score += 3.0 * multiplier // Place bonus
+            val positionPoints = when (race.position) {
+                1 -> 5.0 * multiplier // Win bonus
+                2, 3 -> 3.0 * multiplier // Place bonus
+                4, 5 -> 1.5 * multiplier // Close finish bonus
+                6, 7, 8 -> 1.0 * multiplier // Decent finish bonus
+                else -> 0.0
             }
+            
+            score += positionPoints
+            println("🏇 Law 1: Race ${index + 1} - Position ${race.position}, Margin ${race.margin}, Points: ${String.format("%.1f", positionPoints)} (multiplier: ${String.format("%.1f", multiplier)})")
         }
         
         // SPECIAL BONUS: Last start margin bonus (within 4 lengths of winner)
@@ -183,7 +193,9 @@ class ScoringEngine {
             }
         }
         
-        return min(score, RECENT_FORM_WEIGHT)
+        val finalScore = min(score, RECENT_FORM_WEIGHT)
+        println("🏇 Law 1: Total score: ${String.format("%.1f", finalScore)} (capped at ${RECENT_FORM_WEIGHT})")
+        return finalScore
     }
     
     /**
