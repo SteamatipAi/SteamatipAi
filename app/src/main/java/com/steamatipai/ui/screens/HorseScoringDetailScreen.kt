@@ -1,0 +1,334 @@
+package com.steamatipai.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.steamatipai.data.models.ScoredHorse
+import com.steamatipai.R
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HorseScoringDetailScreen(
+    scoredHorse: ScoredHorse,
+    onBackClick: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Backdrop Image
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = R.drawable.app_backdrop),
+            contentDescription = "Racing backdrop",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        // Dark overlay for better text readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.7f)
+                        )
+                    )
+                )
+        )
+        
+        // Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBackClick) {
+                    Text("← Back", color = Color(0xFFFFD700))
+                }
+                
+                Text(
+                    text = scoredHorse.horse.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            // Horse Basic Info Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black),
+                border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.7f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Horse Information",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFD700)
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Saddle #${scoredHorse.horse.number}", color = Color.White)
+                        Text("Barrier ${scoredHorse.horse.barrier}", color = Color.White)
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Weight: ${scoredHorse.horse.weight}kg", color = Color.White)
+                        Text("Jockey: ${scoredHorse.horse.jockey}", color = Color.White)
+                    }
+                    
+                    Text("Trainer: ${scoredHorse.horse.trainer}", color = Color.White)
+                }
+            }
+            
+            // Total Score Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black),
+                border = BorderStroke(2.dp, Color(0xFFFFD700))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "TOTAL SCORE",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = String.format("%.1f", scoredHorse.score),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "out of 116.0 points",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+            
+            // Scoring Breakdown
+            Text(
+                text = "Scoring Breakdown by Law",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFFFD700)
+            )
+            
+            // Law 1 - Recent Form
+            ScoringLawCard(
+                lawNumber = 1,
+                lawName = "Recent Form",
+                score = scoredHorse.scoreBreakdown.recentForm,
+                maxScore = 25.0,
+                description = "Performance in last 5 races with recency weighting"
+            )
+            
+            // Law 2 - Class Suitability
+            ScoringLawCard(
+                lawNumber = 2,
+                lawName = "Class Suitability",
+                score = scoredHorse.scoreBreakdown.classSuitability,
+                maxScore = 25.0,
+                description = "How well the horse fits the race class"
+            )
+            
+            // Law 3 - Track/Distance History
+            ScoringLawCard(
+                lawNumber = 3,
+                lawName = "Track/Distance History",
+                score = scoredHorse.scoreBreakdown.trackDistance,
+                maxScore = 20.0,
+                description = "Past performance at this track and distance"
+            )
+            
+            // Law 4 - Sectional Time
+            ScoringLawCard(
+                lawNumber = 4,
+                lawName = "Sectional Time",
+                score = scoredHorse.scoreBreakdown.sectionalTime,
+                maxScore = 8.0,
+                description = "Speed in final 600m of recent races"
+            )
+            
+            // Law 5 - Barrier
+            ScoringLawCard(
+                lawNumber = 5,
+                lawName = "Barrier",
+                score = scoredHorse.scoreBreakdown.barrier,
+                maxScore = 6.0,
+                description = "Starting position advantage"
+            )
+            
+            // Law 6 - Jockey
+            ScoringLawCard(
+                lawNumber = 6,
+                lawName = "Jockey",
+                score = scoredHorse.scoreBreakdown.jockey,
+                maxScore = 8.0,
+                description = "Jockey's current form and premiership ranking"
+            )
+            
+            // Law 7 - Trainer
+            ScoringLawCard(
+                lawNumber = 7,
+                lawName = "Trainer",
+                score = scoredHorse.scoreBreakdown.trainer,
+                maxScore = 8.0,
+                description = "Trainer's current form and premiership ranking"
+            )
+            
+            // Law 8 - Combination
+            ScoringLawCard(
+                lawNumber = 8,
+                lawName = "Jockey-Horse & Jockey-Trainer",
+                score = scoredHorse.scoreBreakdown.combination,
+                maxScore = 8.0,
+                description = "Historical success of jockey with this horse and trainer"
+            )
+            
+            // Law 9 - Track Condition
+            ScoringLawCard(
+                lawNumber = 9,
+                lawName = "Track Condition",
+                score = scoredHorse.scoreBreakdown.trackCondition,
+                maxScore = 8.0,
+                description = "How well the horse performs on current track condition"
+            )
+            
+            // Additional Info
+            if (scoredHorse.scoreBreakdown.type != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Black),
+                    border = BorderStroke(1.dp, Color(0xFFFFA500).copy(alpha = 0.7f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Scoring Type",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD700)
+                        )
+                        Text(
+                            text = scoredHorse.scoreBreakdown.type.toString().replace("_", " "),
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScoringLawCard(
+    lawNumber: Int,
+    lawName: String,
+    score: Double,
+    maxScore: Double,
+    description: String
+) {
+    val percentage = if (maxScore > 0) (score / maxScore) * 100 else 0.0
+    val color = when {
+        percentage >= 80 -> Color(0xFFFFD700) // Gold
+        percentage >= 60 -> Color(0xFFFFA500) // Orange
+        else -> Color(0xFFFF6B6B) // Light Red
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Black),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Law $lawNumber: $lawName",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700)
+                )
+                Text(
+                    text = "${String.format("%.1f", score)} / ${String.format("%.1f", maxScore)}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+            }
+            
+            // Progress bar
+            LinearProgressIndicator(
+                progress = (score / maxScore).toFloat(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = color,
+                trackColor = color.copy(alpha = 0.3f)
+            )
+            
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.8f),
+                lineHeight = 16.sp
+            )
+        }
+    }
+}

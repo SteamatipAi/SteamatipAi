@@ -223,8 +223,7 @@ class RaceAnalysisService(
                             println("     Barrier: ${String.format("%.1f", scoredHorse.scoreBreakdown.barrier)}")
                             println("     Jockey: ${String.format("%.1f", scoredHorse.scoreBreakdown.jockey)}")
                             println("     Trainer: ${String.format("%.1f", scoredHorse.scoreBreakdown.trainer)}")
-                            println("     Jockey-Horse Relationship: ${String.format("%.1f", scoredHorse.scoreBreakdown.jockeyHorseRelationship)}")
-                            println("     Jockey-Trainer Partnership: ${String.format("%.1f", scoredHorse.scoreBreakdown.jockeyTrainerPartnership)}")
+                            println("     Jockey-Horse & Jockey-Trainer Combination: ${String.format("%.1f", scoredHorse.scoreBreakdown.combination)}")
                             println("     Track Condition: ${String.format("%.1f", scoredHorse.scoreBreakdown.trackCondition)}")
                             
                             scoredHorses.add(scoredHorse)

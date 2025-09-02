@@ -796,19 +796,27 @@ class ScrapingService {
             
             println("🔍 Found saddle number: $saddleNumber")
             
-            // Extract jockey - NO FALLBACK
-            val jockey = horseElement.select(".jockey, .rider, [class*='jockey'], [class*='rider']").firstOrNull()?.text()?.trim()
-            if (jockey.isNullOrEmpty()) {
+            // Extract jockey - NO FALLBACK - Clean up name by removing apprentice claims and weights
+            val jockeyRaw = horseElement.select(".jockey, .rider, [class*='jockey'], [class*='rider']").firstOrNull()?.text()?.trim()
+            if (jockeyRaw.isNullOrEmpty()) {
                 println("❌ No real jockey found for $name - skipping")
                 return null
             }
             
-            // Extract trainer - NO FALLBACK
-            val trainer = horseElement.select(".trainer, [class*='trainer']").firstOrNull()?.text()?.trim()
-            if (trainer.isNullOrEmpty()) {
+            // Clean up jockey name by removing apprentice claims and weights
+            val jockey = cleanJockeyName(jockeyRaw)
+            println("🔍 Found jockey: '$jockeyRaw' -> cleaned: '$jockey'")
+            
+            // Extract trainer - NO FALLBACK - Clean up name by removing additional info
+            val trainerRaw = horseElement.select(".trainer, [class*='trainer']").firstOrNull()?.text()?.trim()
+            if (trainerRaw.isNullOrEmpty()) {
                 println("❌ No real trainer found for $name - skipping")
                 return null
             }
+            
+            // Clean up trainer name by removing additional info
+            val trainer = cleanTrainerName(trainerRaw)
+            println("🔍 Found trainer: '$trainerRaw' -> cleaned: '$trainer'")
             
             // Extract weight - NO FALLBACK
             val weightText = horseElement.select(".weight, .carry, [class*='weight'], [class*='carry']").firstOrNull()?.text()?.trim()
@@ -869,6 +877,32 @@ class ScrapingService {
             println("❌ Error parsing horse element: ${e.message}")
             return null
         }
+    }
+    
+    /**
+     * Clean up jockey name by removing apprentice claims and weights
+     */
+    private fun cleanJockeyName(jockeyRaw: String): String {
+        // Remove apprentice claims like "(a2/52.5kg)" or "(a3/50kg)"
+        val cleaned = Regex("\\(a\\d+/\\d+\\.?\\d*kg\\)").replace(jockeyRaw, "").trim()
+        
+        // Remove any remaining parentheses with weights
+        val cleaned2 = Regex("\\(\\d+\\.?\\d*kg\\)").replace(cleaned, "").trim()
+        
+        // Remove any remaining parentheses with numbers
+        val cleaned3 = Regex("\\(\\d+\\)").replace(cleaned2, "").trim()
+        
+        return cleaned3
+    }
+    
+    /**
+     * Clean up trainer name by removing additional info
+     */
+    private fun cleanTrainerName(trainerRaw: String): String {
+        // Remove any parentheses with additional info
+        val cleaned = Regex("\\([^)]*\\)").replace(trainerRaw, "").trim()
+        
+        return cleaned
     }
     
     /**
@@ -1174,7 +1208,12 @@ class ScrapingService {
         
         // Racing Australia specific selectors for recent race results
         // Look for tables or divs that contain race result information
-        val raceElements = doc.select("table[class*='form'], table[class*='result'], .form-table, .result-table, [class*='form-line'], [class*='race-result']")
+        // EXCLUDE horse-search-details tables which contain owner/career summary info
+        var raceElements = doc.select("table[class*='form'], table[class*='result'], .form-table, .result-table, [class*='form-line'], [class*='race-result']")
+            .filter { element -> 
+                !element.hasClass("horse-search-details") && 
+                !element.className().contains("horse-search-details")
+            }
         
         if (raceElements.isEmpty()) {
             println("⚠️ No race result tables found with specific selectors, trying broader search...")
@@ -1182,8 +1221,13 @@ class ScrapingService {
             val allTables = doc.select("table")
             println("🔍 Found ${allTables.size} total tables")
             
-            // Look for tables that contain race-like data
+            // Look for tables that contain race-like data, but EXCLUDE horse-search-details
             val potentialRaceTables = allTables.filter { table ->
+                // Skip horse-search-details tables
+                if (table.hasClass("horse-search-details") || table.className().contains("horse-search-details")) {
+                    return@filter false
+                }
+                
                 val tableText = table.text()
                 tableText.contains("Race", ignoreCase = true) ||
                 tableText.contains("Finish", ignoreCase = true) ||
@@ -1194,10 +1238,10 @@ class ScrapingService {
                 tableText.contains("Date", ignoreCase = true)
             }
             
-            println("🔍 Found ${potentialRaceTables.size} potential race result tables")
+            println("🔍 Found ${potentialRaceTables.size} potential race result tables (excluding horse-search-details)")
             
             // Use the first few potential race tables
-            raceElements.addAll(potentialRaceTables.take(3))
+            raceElements = potentialRaceTables.take(3)
         }
         
         println("🔍 Processing ${raceElements.size} race result elements")
@@ -1528,6 +1572,9 @@ class ScrapingService {
             tableRows.forEachIndexed { index, row ->
                 if (index == 0) return@forEachIndexed // Skip header row
                 
+                // Only process top 20 jockeys from each state's premiership
+                if (index > 20) return@forEachIndexed
+                
                 val cells = row.select("td")
                 if (cells.size >= 8) {
                     try {
@@ -1603,6 +1650,9 @@ class ScrapingService {
             
             tableRows.forEachIndexed { index, row ->
                 if (index == 0) return@forEachIndexed // Skip header row
+                
+                // Only process top 20 trainers from each state's premiership
+                if (index > 20) return@forEachIndexed
                 
                 val cells = row.select("td")
                 if (cells.size >= 8) {

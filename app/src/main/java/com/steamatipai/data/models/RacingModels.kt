@@ -42,7 +42,7 @@ data class ScoredHorse(
 
 // Detailed scoring breakdown
 data class ScoreBreakdown(
-    val type: ScoringType,
+    val type: ScoringType? = null,
     val recentForm: Double = 0.0,
     val classSuitability: Double = 0.0,
     val trackDistance: Double = 0.0,
@@ -50,9 +50,7 @@ data class ScoreBreakdown(
     val barrier: Double = 0.0,
     val jockey: Double = 0.0,
     val trainer: Double = 0.0,
-    val jockeyHorseRelationship: Double = 0.0,
-    val jockeyTrainerPartnership: Double = 0.0,
-    val combinationScore: Double = 0.0,
+    val combination: Double = 0.0,  // Combined jockey-horse + jockey-trainer
     val trackCondition: Double = 0.0,  // NEW LAW 9
     val totalScore: Double = 0.0
 )

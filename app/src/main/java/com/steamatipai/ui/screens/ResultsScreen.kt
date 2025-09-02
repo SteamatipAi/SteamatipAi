@@ -47,6 +47,7 @@ fun ResultsScreen(
     var results by remember { mutableStateOf<List<RaceResult>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var processingTime by remember { mutableStateOf(0L) }
+    var selectedHorse by remember { mutableStateOf<ScoredHorse?>(null) }
 
     val raceAnalysisService = remember { RaceAnalysisService() }
     val context = LocalContext.current
@@ -69,11 +70,11 @@ fun ResultsScreen(
                         val state = parts[1]
                         val trackName = parts[2].replace("%20", " ")
                         
-                        Track(
-                            key = trackKey,
+                Track(
+                    key = trackKey,
                             name = trackName,
-                            state = state,
-                            raceCount = 0,
+                    state = state,
+                    raceCount = 0,
                             url = NetworkConfig.buildTrackFormUrl(datePart, state, trackName)
                         )
                     } else {
@@ -147,92 +148,101 @@ fun ResultsScreen(
         )
         
         // Content
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.Filled.ArrowBack, 
-                        contentDescription = "Back",
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.Filled.ArrowBack, 
+                    contentDescription = "Back",
                         tint = Color(0xFFFFD700)
-                    )
-                }
+                )
+            }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Race Analysis Results",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Race Analysis Results",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFD700)
                     )
                 }
             }
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            // Show horse detail screen if a horse is selected
+            if (selectedHorse != null) {
+                HorseScoringDetailScreen(
+                    scoredHorse = selectedHorse!!,
+                    onBackClick = { selectedHorse = null }
+                )
+                return@Column
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Analyzing races...",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "This may take a few minutes",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Analyzing races...",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "This may take a few minutes",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            } else if (error != null && results.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            }
+        } else if (error != null && results.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Text(
+                        text = "Analysis Error",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            isLoading = true
+                            error = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Black,
+                                contentColor = Color(0xFFFFD700)
+                        ),
+                            border = BorderStroke(2.dp, Color(0xFFFFD700))
                     ) {
                         Text(
-                            text = "Analysis Error",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = error!!,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                isLoading = true
-                                error = null
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = Color(0xFFFFD700)
-                            ),
-                            border = BorderStroke(2.dp, Color(0xFFFFD700))
-                        ) {
-                            Text(
-                                "Retry Analysis",
-                                fontWeight = FontWeight.Bold,
+                            "Retry Analysis",
+                            fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFFD700)
                             )
                         }
@@ -276,19 +286,22 @@ fun ResultsScreen(
                                 color = Color(0xFFFFD700)
                             )
                         }
-                    }
                 }
-            } else {
+            }
+        } else {
                 // Results List - Organized by Race Number
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                     // Sort results by race number
                     val sortedResults = results.sortedBy { it.race.raceNumber }
                     
                     // Display each race separately
                     items(sortedResults) { raceResult ->
-                        RaceResultCard(raceResult = raceResult)
+                        RaceResultCard(
+                            raceResult = raceResult,
+                            onHorseClick = { horse -> selectedHorse = horse }
+                        )
                     }
                     
                     // Add processing time info at the end
@@ -319,8 +332,8 @@ fun ResultsScreen(
                                     )
                                 }
                             }
-                        }
                     }
+                }
                 }
             }
         }
@@ -328,7 +341,10 @@ fun ResultsScreen(
 }
 
 @Composable
-fun RaceResultCard(raceResult: RaceResult) {
+fun RaceResultCard(
+    raceResult: RaceResult,
+    onHorseClick: (ScoredHorse) -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -349,10 +365,10 @@ fun RaceResultCard(raceResult: RaceResult) {
             )
 
             // Track Info
-            Text(
-                text = raceResult.race.venue,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.9f),
+                Text(
+                    text = raceResult.race.venue,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -376,7 +392,8 @@ fun RaceResultCard(raceResult: RaceResult) {
                 HorseSelectionItem(
                     horse = horse,
                     position = index + 1,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    onClick = { onHorseClick(horse) }
                 )
             }
         }
@@ -387,10 +404,13 @@ fun RaceResultCard(raceResult: RaceResult) {
 fun HorseSelectionItem(
     horse: ScoredHorse,
     position: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Black
@@ -451,7 +471,7 @@ fun HorseSelectionItem(
                     
                     if (horse.isStandout) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                Text(
                             text = "⭐",
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -469,7 +489,7 @@ fun HorseSelectionItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.7f)
                 )
-                
+            
                 Text(
                     text = "Barrier: ${horse.horse.barrier} • Weight: ${horse.horse.weight}kg",
                     style = MaterialTheme.typography.bodySmall,

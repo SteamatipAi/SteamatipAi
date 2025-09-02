@@ -136,9 +136,7 @@ class ScoringEngine {
                     barrier = barrier,
                     jockey = jockey,
                     trainer = trainer,
-                    jockeyHorseRelationship = jockeyHorseRelationship,
-                    jockeyTrainerPartnership = jockeyTrainerPartnership,
-                    combinationScore = combination,
+                    combination = combination,
                     trackCondition = trackCondition,  // NEW LAW 9
                     totalScore = totalScore
                 )
