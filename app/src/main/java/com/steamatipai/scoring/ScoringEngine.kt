@@ -63,15 +63,38 @@ class ScoringEngine {
         }
         
         // Check if horse is returning from spell or first-up
-        val isReturningFromSpell = isReturningFromSpell(horse, horseForm)
+        val isReturningFromSpell = isReturningFromSpell(horse, horseForm, race.date)
         val isFirstUp = isFirstUpHorse(horseForm)
         
         when {
             isReturningFromSpell -> {
                 println("🏆 ${horse.name} - USING SPELL HORSE SCORING (returning from spell)")
                 val score = calculateSpellHorseScore(horse, race, horseForm, jockeyRankings, trainerRankings)
+                
+                // Calculate individual law scores for display
+                val recentForm = 0.0 // Spell horses get 0 for recent form
+                val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm)
+                val trackDistance = calculateTrackDistanceScore(horse, race, horseForm)
+                val sectionalTime = calculateSectionalTimeScore(horseForm)
+                val barrier = calculateBarrierScore(horse)
+                val jockey = calculateJockeyScore(horse, jockeyRankings)
+                val trainer = calculateTrainerScore(horse, trainerRankings)
+                val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
+                val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm)
+                val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val trackCondition = calculateTrackConditionScore(horse, race, horseForm)
+                
                 val scoreBreakdown = ScoreBreakdown(
                     type = ScoringType.RETURNING_FROM_SPELL,
+                    recentForm = recentForm,
+                    classSuitability = classSuitability,
+                    trackDistance = trackDistance,
+                    sectionalTime = sectionalTime,
+                    barrier = barrier,
+                    jockey = jockey,
+                    trainer = trainer,
+                    combination = combination,
+                    trackCondition = trackCondition,
                     totalScore = score
                 )
                 return ScoredHorse(
@@ -83,8 +106,31 @@ class ScoringEngine {
             isFirstUp -> {
                 println("🏆 ${horse.name} - USING FIRST UP HORSE SCORING (first starter)")
                 val score = calculateFirstUpHorseScore(horse, race, horseForm, jockeyRankings, trainerRankings)
+                
+                // Calculate individual law scores for display
+                val recentForm = 0.0 // First-up horses get 0 for recent form
+                val classSuitability = 0.0 // First-up horses get 0 for class suitability
+                val trackDistance = 0.0 // First-up horses get 0 for track/distance history
+                val sectionalTime = calculateSectionalTimeScore(horseForm)
+                val barrier = calculateBarrierScore(horse)
+                val jockey = calculateJockeyScore(horse, jockeyRankings)
+                val trainer = calculateTrainerScore(horse, trainerRankings)
+                val jockeyHorseRelationship = 0.0 // First-up horses get 0 for jockey-horse relationship
+                val jockeyTrainerPartnership = 0.0 // First-up horses get 0 for jockey-trainer partnership
+                val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val trackCondition = 0.0 // First-up horses get 0 for track condition history
+                
                 val scoreBreakdown = ScoreBreakdown(
                     type = ScoringType.FIRST_UP,
+                    recentForm = recentForm,
+                    classSuitability = classSuitability,
+                    trackDistance = trackDistance,
+                    sectionalTime = sectionalTime,
+                    barrier = barrier,
+                    jockey = jockey,
+                    trainer = trainer,
+                    combination = combination,
+                    trackCondition = trackCondition,
                     totalScore = score
                 )
                 return ScoredHorse(
@@ -155,14 +201,29 @@ class ScoringEngine {
      * Considers last 5 races for wins, places, and last start margin bonus
      */
     private fun calculateRecentFormScore(horseForm: HorseForm): Double {
+        println("🔍 Law 1 DEBUG: Starting Law 1 calculation")
+        println("🔍 Law 1 DEBUG: HorseForm.last5Races.size = ${horseForm.last5Races.size}")
+        
         if (horseForm.last5Races.isEmpty()) {
-            println("🏇 Law 1: No recent races found")
+            println("🏇 Law 1: No recent races found - returning 0.0")
             return 0.0
         }
         
         var score = 0.0
         val last5Races = horseForm.last5Races.take(5)
         println("🏇 Law 1: Processing ${last5Races.size} recent races")
+        
+        // Debug: Print all race details
+        last5Races.forEachIndexed { index, race ->
+            println("🔍 Law 1 DEBUG: Race ${index + 1} details:")
+            println("   Position: ${race.position}")
+            println("   Margin: ${race.margin}")
+            println("   Track: ${race.track}")
+            println("   Distance: ${race.distance}")
+            println("   Date: ${race.date}")
+            println("   Jockey: ${race.jockey}")
+            println("   Trainer: ${race.trainer}")
+        }
         
         last5Races.forEachIndexed { index, race ->
             val recency = 5.0 - index // More recent = higher multiplier
@@ -184,12 +245,18 @@ class ScoringEngine {
         // Only applies to the most recent race (index 0)
         if (last5Races.isNotEmpty()) {
             val lastStart = last5Races[0]
+            println("🔍 Law 1 DEBUG: Checking last start margin bonus for position ${lastStart.position}")
             lastStart.margin?.let { margin ->
+                println("🔍 Law 1 DEBUG: Last start margin = $margin")
                 // Bonus for being close to winner regardless of position
                 if (margin <= 4.0) {
                     score += 3.0 // Fixed bonus for last start performance
-                    println("🏇 ${lastStart.position}${getPositionSuffix(lastStart.position)} place within ${margin} lengths - margin bonus applied")
+                    println("🏇 ${lastStart.position}${getPositionSuffix(lastStart.position)} place within ${margin} lengths - margin bonus applied (+3.0)")
+                } else {
+                    println("🔍 Law 1 DEBUG: Margin $margin > 4.0, no bonus applied")
                 }
+            } ?: run {
+                println("🔍 Law 1 DEBUG: Last start margin is null, no bonus applied")
             }
         }
         
@@ -510,15 +577,28 @@ class ScoringEngine {
     }
     
     // Helper methods
-    private fun isReturningFromSpell(horse: Horse, horseForm: HorseForm): Boolean {
+    private fun isReturningFromSpell(horse: Horse, horseForm: HorseForm, analysisDate: Date): Boolean {
         // Only mark as spell if we have actual form data showing a gap
         if (horseForm.last5Races.isEmpty()) return false // Don't assume spell if no data
         
-        val lastRace = horseForm.last5Races.first()
+        val lastRace = horseForm.last5Races.last() // Use LAST race (most recent) not first
         lastRace.date?.let { lastRaceDate ->
-            val weeksAgo = (Date().time - lastRaceDate.time) / (1000 * 60 * 60 * 24 * 7)
+            // Add detailed debug logging for date calculation
+            println("🔍 SPELL DEBUG: analysisDate = $analysisDate (${analysisDate.time})")
+            println("🔍 SPELL DEBUG: lastRaceDate = $lastRaceDate (${lastRaceDate.time})")
+            
+            val timeDifferenceMs = analysisDate.time - lastRaceDate.time
+            val timeDifferenceDays = timeDifferenceMs.toDouble() / (1000.0 * 60.0 * 60.0 * 24.0)
+            val weeksAgo = timeDifferenceDays / 7.0
+            
+            println("🔍 SPELL DEBUG: Time difference = ${timeDifferenceMs}ms = ${timeDifferenceDays} days = ${weeksAgo} weeks")
+            println("🔍 Spell check: Last race was ${weeksAgo} weeks ago (threshold: ${SPELL_THRESHOLD_WEEKS})")
             return weeksAgo >= SPELL_THRESHOLD_WEEKS
         }
+        
+        // If we have recent races but can't parse the date, this is a parsing error
+        // For now, treat as not a spell horse but log the issue
+        println("⚠️ CRITICAL: Horse ${horse.name} has ${horseForm.last5Races.size} recent races but last race date is null - this is a parsing error!")
         return false // Default to not spell if we can't determine
     }
     

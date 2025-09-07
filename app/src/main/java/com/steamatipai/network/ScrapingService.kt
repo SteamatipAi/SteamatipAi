@@ -336,10 +336,10 @@ class ScrapingService {
                 println("🔍 Using div filtering, found ${raceElements.size} potential race divs")
             }
             
-            // Limit to maximum 8 races (reasonable limit for a race day)
-            if (raceElements.size > 8) {
-                println("⚠️ Found ${raceElements.size} potential race elements, limiting to first 8")
-                raceElements = raceElements.take(8)
+            // Limit to maximum 10 races (reasonable limit for a race day)
+            if (raceElements.size > 10) {
+                println("⚠️ Found ${raceElements.size} potential race elements, limiting to first 10")
+                raceElements = raceElements.take(10)
             }
             
             println("🔍 Found ${raceElements.size} race elements")
@@ -402,8 +402,8 @@ class ScrapingService {
             }
             println("🔍 Alternative: Found ${raceTables.size} potential race tables")
             
-            // Limit to maximum 8 races for alternative parsing
-            val limitedTables = raceTables.take(8)
+            // Limit to maximum 10 races for alternative parsing
+            val limitedTables = raceTables.take(10)
             
             limitedTables.forEachIndexed { index, table ->
                 try {
@@ -451,7 +451,7 @@ class ScrapingService {
             }
         } else {
             // Use the field-specific containers
-            val limitedContainers = potentialRaceContainers.take(8)
+            val limitedContainers = potentialRaceContainers.take(10)
             
             limitedContainers.forEachIndexed { index, container ->
                 try {
@@ -1154,6 +1154,10 @@ class ScrapingService {
             
             if (horseForm != null) {
                 println("✅ Successfully parsed horse form with ${horseForm.last5Races.size} recent races")
+                // Debug: Print details of each race found
+                horseForm.last5Races.forEachIndexed { index, race ->
+                    println("🔍 Horse Form Race ${index + 1}: Position=${race.position}, Margin=${race.margin}, Track=${race.track}")
+                }
             } else {
                 println("❌ Failed to parse horse form data")
             }
@@ -1206,62 +1210,54 @@ class ScrapingService {
         
         println("🔍 Parsing recent races from horse form document...")
         
-        // Racing Australia specific selectors for recent race results
-        // Look for tables or divs that contain race result information
-        // EXCLUDE horse-search-details tables which contain owner/career summary info
-        var raceElements = doc.select("table[class*='form'], table[class*='result'], .form-table, .result-table, [class*='form-line'], [class*='race-result']")
-            .filter { element -> 
-                !element.hasClass("horse-search-details") && 
-                !element.className().contains("horse-search-details")
-            }
+        // First, specifically look for the interactive-race-fields table that contains the actual race results
+        val interactiveRaceFieldsTable = doc.select("table.interactive-race-fields").firstOrNull()
         
-        if (raceElements.isEmpty()) {
-            println("⚠️ No race result tables found with specific selectors, trying broader search...")
-            // Try looking for any table that might contain race results
-            val allTables = doc.select("table")
-            println("🔍 Found ${allTables.size} total tables")
-            
-            // Look for tables that contain race-like data, but EXCLUDE horse-search-details
-            val potentialRaceTables = allTables.filter { table ->
-                // Skip horse-search-details tables
-                if (table.hasClass("horse-search-details") || table.className().contains("horse-search-details")) {
-                    return@filter false
-                }
-                
-                val tableText = table.text()
-                tableText.contains("Race", ignoreCase = true) ||
-                tableText.contains("Finish", ignoreCase = true) ||
-                tableText.contains("Position", ignoreCase = true) ||
-                tableText.contains("Margin", ignoreCase = true) ||
-                tableText.contains("Track", ignoreCase = true) ||
-                tableText.contains("Distance", ignoreCase = true) ||
-                tableText.contains("Date", ignoreCase = true)
-            }
-            
-            println("🔍 Found ${potentialRaceTables.size} potential race result tables (excluding horse-search-details)")
-            
-            // Use the first few potential race tables
-            raceElements = potentialRaceTables.take(3)
+        if (interactiveRaceFieldsTable == null) {
+            println("⚠️ No interactive-race-fields table found.")
+            return emptyList()
         }
         
-        println("🔍 Processing ${raceElements.size} race result elements")
+        // Select all rows within this table, skipping the header row (assuming the first row is the header)
+        val raceRows = interactiveRaceFieldsTable.select("tr").drop(1) // Skip header row
+        println("🔍 Found ${raceRows.size} potential race result rows in interactive-race-fields table")
         
-        raceElements.take(5).forEachIndexed { index, raceElement ->
+        if (raceRows.isEmpty()) {
+            println("⚠️ No actual race result rows found in interactive-race-fields table.")
+            return emptyList()
+        }
+        
+        // Limit to the last 5 races as per the HorseForm model
+        raceRows.take(5).forEachIndexed { index, rowElement ->
             try {
-                println("🔍 Processing race result element $index:")
-                println("   Tag: ${raceElement.tagName()}")
-                println("   Class: ${raceElement.className()}")
-                println("   Text preview: ${raceElement.text().take(200)}...")
+                println("🔍 Processing race result row ${index + 1}:")
+                println("   Tag: ${rowElement.tagName()}")
+                println("   Class: ${rowElement.className()}")
+                println("   Text preview: ${rowElement.text().take(200)}...")
                 
-                val race = parseRaceResultFromElement(raceElement)
+                val race = parseRaceResultFromElement(rowElement)
                 if (race != null) {
                     races.add(race)
-                    println("✅ Successfully parsed race result $index")
+                    println("✅ Successfully parsed race result ${index + 1}")
+                    
+                    // CRITICAL DEBUG: Print the entire RaceResultDetail object
+                    println("🔍 DEBUG: Full RaceResultDetail object for race ${index + 1}:")
+                    println("   Position: ${race.position}")
+                    println("   Margin: ${race.margin}")
+                    println("   Track: ${race.track}")
+                    println("   Distance: ${race.distance}")
+                    println("   Track Condition: ${race.trackCondition}")
+                    println("   Sectional Time: ${race.sectionalTime}")
+                    println("   Date: ${race.date}")
+                    println("   Jockey: ${race.jockey}")
+                    println("   Trainer: ${race.trainer}")
+                    println("   Race Class: ${race.raceClass}")
                 } else {
-                    println("⚠️ Failed to parse race result $index")
+                    println("⚠️ Failed to parse race result ${index + 1}")
                 }
             } catch (e: Exception) {
-                println("❌ Error parsing race result $index: ${e.message}")
+                println("❌ Error parsing race result row ${index + 1}: ${e.message}")
+                e.printStackTrace()
             }
         }
         
@@ -1277,7 +1273,11 @@ class ScrapingService {
             println("🔍 Parsing race result element:")
             println("   Text content: ${element.text().take(300)}...")
             
-            // Try multiple selectors for each field with text analysis fallbacks
+            val allText = element.text()
+            
+            // Parse the specific Racing Australia format:
+            // "7th of 11 BRAT 29Jun25 1500m Soft7 MDN-SW $37,500 ($750) John Allen 57.5kg Barrier 7 1st Tassron 59.5kg, 2nd Autumnheat 59.5kg 1:34.04 (600m 36.89), 7.9L, 5th@800m, 6th@400m, $10/$16/$15/$16"
+            
             var position = 0
             var margin: Double? = null
             var raceClass = ""
@@ -1289,15 +1289,17 @@ class ScrapingService {
             var jockey = ""
             var trainer = ""
             
-            // Extract position (finishing position)
-            val positionText = element.select(".position, .finish, [class*='position'], [class*='finish']").firstOrNull()?.text()?.trim()
-            if (positionText != null) {
-                position = positionText.toIntOrNull() ?: 0
+            // Extract position from "7th of 11" format
+            val positionMatch = Regex("(\\d+)(?:st|nd|rd|th)\\s+of\\s+\\d+").find(allText)
+            if (positionMatch != null) {
+                position = positionMatch.groupValues[1].toIntOrNull() ?: 0
+                println("✅ Found position: $position")
             } else {
-                // Try to find position in the text using regex
-                val positionMatch = Regex("(\\d+)(?:st|nd|rd|th)?").find(element.text())
-                if (positionMatch != null) {
-                    position = positionMatch.groupValues[1].toIntOrNull() ?: 0
+                // Fallback: try to find position without "of X" format
+                val simplePositionMatch = Regex("(\\d+)(?:st|nd|rd|th)").find(allText)
+                if (simplePositionMatch != null) {
+                    position = simplePositionMatch.groupValues[1].toIntOrNull() ?: 0
+                    println("✅ Found position (fallback): $position")
                 }
             }
             
@@ -1306,73 +1308,80 @@ class ScrapingService {
                 return null
             }
             
-            // Extract margin
-            val marginText = element.select(".margin, .lengths, [class*='margin'], [class*='length']").firstOrNull()?.text()?.trim()
-            margin = parseMargin(marginText)
-            
-            // Extract race class
-            val raceClassText = element.select(".class, .race-class, [class*='class']").firstOrNull()?.text()?.trim()
-            raceClass = raceClassText ?: ""
-            
-            // Extract track/venue - try multiple approaches
-            var trackText = element.select(".track, .venue, [class*='track'], [class*='venue']").firstOrNull()?.text()?.trim()
-            if (trackText.isNullOrEmpty()) {
-                // Try to find track name in the text using regex patterns
-                val allText = element.text()
-                val trackMatch = Regex("([A-Za-z]{3,}(?:\\s+[A-Za-z]{3,})*?)\\s+\\d{1,4}m").find(allText)
-                if (trackMatch != null) {
-                    trackText = trackMatch.groupValues[1].trim()
-                    println("✅ Found track from regex: $trackText")
-                }
+            // Extract track (3-4 letter code like "BRAT")
+            val trackMatch = Regex("\\d+(?:st|nd|rd|th)\\s+of\\s+\\d+\\s+([A-Z]{3,4})\\s+").find(allText)
+            if (trackMatch != null) {
+                track = trackMatch.groupValues[1].trim()
+                println("✅ Found track: $track")
             }
-            track = trackText ?: ""
             
-            // Extract distance - try multiple approaches
-            var distanceText = element.select(".distance, [class*='distance']").firstOrNull()?.text()?.trim()
-            var extractedDistance = parseDistance(distanceText)
-            if (extractedDistance == null || extractedDistance == 0) {
-                // Try to find distance in the text using regex
-                val allText = element.text()
-                val distanceMatch = Regex("(\\d{1,4})\\s*m").find(allText)
-                if (distanceMatch != null) {
-                    extractedDistance = distanceMatch.groupValues[1].toIntOrNull()
-                    if (extractedDistance != null && extractedDistance > 0) {
-                        println("✅ Found distance from regex: ${extractedDistance}m")
-                    }
-                }
+            // Extract date (format like "29Jun25")
+            val dateMatch = Regex("([A-Z]{3,4})\\s+(\\d{1,2}[A-Za-z]{3}\\d{2})").find(allText)
+            if (dateMatch != null) {
+                val dateStr = dateMatch.groupValues[2].trim()
+                date = parseRacingAustraliaDate(dateStr)
+                println("✅ Found date: $dateStr -> $date")
             }
-            distance = extractedDistance ?: 0
             
-            // Extract track condition - try multiple approaches
-            var conditionText = element.select(".condition, .track-condition, [class*='condition']").firstOrNull()?.text()?.trim()
-            if (conditionText.isNullOrEmpty()) {
-                // Try to find condition in the text using regex
-                val allText = element.text()
-                val conditionMatch = Regex("(Good|Soft|Heavy|Firm|Synthetic|Wet|Slow|Dead)\\d?").find(allText)
-                if (conditionMatch != null) {
-                    conditionText = conditionMatch.groupValues[1].trim()
-                    println("✅ Found condition from regex: $conditionText")
-                }
+            // Extract distance (format like "1500m")
+            val distanceMatch = Regex("(\\d{1,4})m").find(allText)
+            if (distanceMatch != null) {
+                distance = distanceMatch.groupValues[1].toIntOrNull() ?: 0
+                println("✅ Found distance: ${distance}m")
             }
-            trackCondition = conditionText ?: ""
             
-            // Extract sectional time
-            val sectionalText = element.select(".sectional, .600m, [class*='sectional']").firstOrNull()?.text()?.trim()
-            sectionalTime = parseSectionalTime(sectionalText)
+            // Extract track condition (format like "Soft7")
+            val conditionMatch = Regex("(Good|Soft|Heavy|Firm|Synthetic|Wet|Slow|Dead)(\\d+)?").find(allText)
+            if (conditionMatch != null) {
+                trackCondition = conditionMatch.groupValues[1].trim()
+                val conditionNumber = conditionMatch.groupValues[2]
+                if (conditionNumber.isNotEmpty()) {
+                    trackCondition += conditionNumber
+                }
+                println("✅ Found track condition: $trackCondition")
+            }
             
-            // Extract date
-            val dateText = element.select(".date, [class*='date']").firstOrNull()?.text()?.trim()
-            date = parseDate(dateText)
+            // Extract race class (format like "MDN-SW")
+            val classMatch = Regex("(MDN-SW|MDN|CL[0-9]+|BM[0-9]+|OPEN|HCP|STAKES|CUP|PLATE)").find(allText)
+            if (classMatch != null) {
+                raceClass = classMatch.groupValues[1].trim()
+                println("✅ Found race class: $raceClass")
+            }
+            
+            // Extract margin (format like "7.9L")
+            val marginMatch = Regex("(\\d+(?:\\.\\d+)?)L").find(allText)
+            if (marginMatch != null) {
+                margin = marginMatch.groupValues[1].toDoubleOrNull()
+                println("✅ Found margin: ${margin}L")
+            }
             
             // Extract jockey
-            val jockeyText = element.select(".jockey, .rider, [class*='jockey'], [class*='rider']").firstOrNull()?.text()?.trim()
-            jockey = jockeyText ?: ""
+            // Look for a name after prize money and before weight/barrier
+            // Example: "$27,000 ($14,850) Joe Bowditch 57.5kg" or "$27,000 Luke Cartwright (a) 57kg (cd 55kg) Barrier 9"
+            val jockeyPattern = Regex("\\$\\d{1,3}(?:,\\d{3})*(?:\\s+\\([^)]+\\))?\\s+([A-Za-z\\s.'-]+?)(?:\\s+\\(a[^)]+\\))?\\s+\\d+\\.?\\d*kg")
+            val jockeyMatch = jockeyPattern.find(allText)
+            if (jockeyMatch != null) {
+                jockey = cleanJockeyName(jockeyMatch.groupValues[1].trim())
+                println("✅ Found jockey: $jockey")
+            } else {
+                println("⚠️ Could not extract jockey using specific pattern.")
+                // Fallback: try to find any capitalized name that looks like a jockey before a weight
+                val fallbackJockeyPattern = Regex("([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)\\s+\\d+\\.?\\d*kg")
+                val fallbackJockeyMatch = fallbackJockeyPattern.find(allText)
+                if (fallbackJockeyMatch != null) {
+                    jockey = cleanJockeyName(fallbackJockeyMatch.groupValues[1].trim())
+                    println("✅ Found jockey (fallback): $jockey")
+                }
+            }
             
-            // Extract trainer
-            val trainerText = element.select(".trainer, [class*='trainer']").firstOrNull()?.text()?.trim()
-            trainer = trainerText ?: ""
+            // Extract sectional time (format like "36.89" in parentheses)
+            val sectionalMatch = Regex("\\(600m\\s+(\\d+(?:\\.\\d+)?)\\)").find(allText)
+            if (sectionalMatch != null) {
+                sectionalTime = sectionalMatch.groupValues[1].toDoubleOrNull()
+                println("✅ Found sectional time: ${sectionalTime}s")
+            }
             
-            println("✅ Extracted race result: Position=$position, Track=$track, Distance=$distance, Condition=$trackCondition")
+            println("✅ Extracted race result: Position=$position, Track=$track, Distance=$distance, Condition=$trackCondition, Margin=$margin")
             
             return RaceResultDetail(
                 position = position,
@@ -1500,6 +1509,20 @@ class ScrapingService {
             
             null
         } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
+     * Parse Racing Australia specific date format (e.g., "29Jun25")
+     */
+    private fun parseRacingAustraliaDate(dateStr: String): Date? {
+        return try {
+            // Racing Australia format: "29Jun25" -> "29 Jun 2025"
+            val dateFormat = SimpleDateFormat("ddMMMyy", Locale.ENGLISH)
+            return dateFormat.parse(dateStr)
+        } catch (e: Exception) {
+            println("❌ Error parsing Racing Australia date '$dateStr': ${e.message}")
             null
         }
     }
