@@ -2,7 +2,10 @@ package com.steamatipai.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -14,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +52,9 @@ fun ResultsScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var processingTime by remember { mutableStateOf(0L) }
     var selectedHorse by remember { mutableStateOf<ScoredHorse?>(null) }
+    var selectedRaceIndex by remember { mutableStateOf(0) }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val raceAnalysisService = remember { RaceAnalysisService() }
     val context = LocalContext.current
@@ -195,7 +202,15 @@ fun ResultsScreen(
             if (selectedHorse != null) {
                 HorseScoringDetailScreen(
                     scoredHorse = selectedHorse!!,
-                    onBackClick = { selectedHorse = null }
+                    onBackClick = { 
+                        selectedHorse = null
+                        // Scroll back to the race that was selected
+                        if (selectedRaceIndex >= 0) {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(selectedRaceIndex)
+                            }
+                        }
+                    }
                 )
                 return@Column
         }
@@ -297,23 +312,27 @@ fun ResultsScreen(
                                 "Retry Analysis",
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFFD700)
-                            )
-                        }
+                        )
+                    }
                 }
             }
         } else {
                 // Results List - Organized by Race Number
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                     // Sort results by race number
                     val sortedResults = results.sortedBy { it.race.raceNumber }
                     
                     // Display each race separately
-                    items(sortedResults) { raceResult ->
+                    itemsIndexed(sortedResults) { index, raceResult ->
                         RaceResultCard(
                             raceResult = raceResult,
-                            onHorseClick = { horse -> selectedHorse = horse }
+                            onHorseClick = { horse -> 
+                                selectedRaceIndex = index
+                                selectedHorse = horse 
+                            }
                         )
                     }
                     
@@ -513,7 +532,7 @@ fun HorseSelectionItem(
     }
 }
 
-private fun shareResults(
+fun shareResults(
     context: android.content.Context,
     results: List<RaceResult>,
     selectedDate: String,
@@ -562,5 +581,6 @@ private fun shareResults(
     val chooserIntent = Intent.createChooser(shareIntent, "Share Race Analysis Results")
     context.startActivity(chooserIntent)
 }
+
 
 

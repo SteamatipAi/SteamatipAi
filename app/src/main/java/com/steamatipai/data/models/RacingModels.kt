@@ -171,13 +171,30 @@ data class UpResult(
     val runs: Int
 )
 
+// Track/Distance performance statistics
+data class TrackDistanceStats(
+    val trackStats: PerformanceStats,      // Performance at this track
+    val distanceStats: PerformanceStats,   // Performance at this distance
+    val combinedStats: PerformanceStats    // Performance at this track AND distance
+)
+
+data class PerformanceStats(
+    val runs: Int,
+    val wins: Int,
+    val seconds: Int,
+    val thirds: Int
+) {
+    val places: Int get() = wins + seconds + thirds
+}
+
 // Horse form history
 data class HorseForm(
     val horseId: String,
     val last5Races: List<RaceResultDetail>,
     val trackDistanceHistory: List<RaceResultDetail>,
     val upResults: UpResult,
-    val trialSectionalTimes: List<Double>
+    val trialSectionalTimes: List<Double>,
+    val trackDistanceStats: TrackDistanceStats? = null
 )
 
 

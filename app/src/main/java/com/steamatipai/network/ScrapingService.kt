@@ -1188,12 +1188,16 @@ class ScrapingService {
             // Parse trial sectional times
             val trialSectionalTimes = parseTrialSectionalTimes(doc)
             
+            // Parse track/distance statistics
+            val trackDistanceStats = parseTrackDistanceStats(doc)
+            
             return HorseForm(
                 horseId = horseCode,
                 last5Races = last5Races,
                 trackDistanceHistory = trackDistanceHistory,
                 upResults = upResults,
-                trialSectionalTimes = trialSectionalTimes
+                trialSectionalTimes = trialSectionalTimes,
+                trackDistanceStats = trackDistanceStats
             )
             
         } catch (e: Exception) {
@@ -1716,6 +1720,177 @@ class ScrapingService {
             println("❌ Error fetching trainer premiership: ${e.message}")
             e.printStackTrace()
             emptyList()
+        }
+    }
+    
+    /**
+     * Parse track/distance statistics from horse form page
+     * Looks for Track:, Dist:, and Track/Dist: statistics
+     */
+    private fun parseTrackDistanceStats(doc: Document): TrackDistanceStats? {
+        try {
+            println("🔍 Parsing track/distance statistics...")
+            
+            // Debug: Print all available sections and their text content
+            println("🔍 DEBUG: Looking for track/distance statistics in HTML...")
+            
+            // Try multiple selectors to find the statistics section
+            val possibleSelectors = listOf(
+                ".career-stats",
+                ".horse-stats", 
+                "[class*='stat']",
+                "[class*='career']",
+                "[class*='track']",
+                "[class*='distance']",
+                "table",
+                "div",
+                "span"
+            )
+            
+            var statsSection: Element? = null
+            var foundInSection = ""
+            
+            for (selector in possibleSelectors) {
+                val elements = doc.select(selector)
+                println("🔍 DEBUG: Selector '$selector' found ${elements.size} elements")
+                
+                for (element in elements) {
+                    val text = element.text()
+                    if (text.contains("Track:") || text.contains("Dist:") || text.contains("Track/Dist:")) {
+                        statsSection = element
+                        foundInSection = selector
+                        println("✅ DEBUG: Found statistics in selector '$selector'")
+                        println("🔍 DEBUG: Section text preview: ${text.take(200)}...")
+                        break
+                    }
+                }
+                if (statsSection != null) break
+            }
+            
+            if (statsSection == null) {
+                println("⚠️ No statistics section found with Track:/Dist:/Track/Dist: patterns")
+                println("🔍 DEBUG: Searching entire document for these patterns...")
+                
+                // Search the entire document text for the patterns
+                val fullText = doc.text()
+                if (fullText.contains("Track:") || fullText.contains("Dist:") || fullText.contains("Track/Dist:")) {
+                    println("✅ DEBUG: Found Track:/Dist:/Track/Dist: patterns in document text")
+                    println("🔍 DEBUG: Full document text preview: ${fullText.take(500)}...")
+                    
+                    // Try to parse directly from the full text
+                    val trackStats = parsePerformanceStatsFromText(fullText, "Track:")
+                    val distanceStats = parsePerformanceStatsFromText(fullText, "Dist:")
+                    val combinedStats = parsePerformanceStatsFromText(fullText, "Track/Dist:")
+                    
+                    if (trackStats != null && distanceStats != null && combinedStats != null) {
+                        println("✅ Successfully parsed track/distance statistics from document text:")
+                        println("   Track: ${trackStats.runs}:${trackStats.wins}-${trackStats.seconds}-${trackStats.thirds}")
+                        println("   Distance: ${distanceStats.runs}:${distanceStats.wins}-${distanceStats.seconds}-${distanceStats.thirds}")
+                        println("   Combined: ${combinedStats.runs}:${combinedStats.wins}-${combinedStats.seconds}-${combinedStats.thirds}")
+                        
+                        return TrackDistanceStats(
+                            trackStats = trackStats,
+                            distanceStats = distanceStats,
+                            combinedStats = combinedStats
+                        )
+                    }
+                } else {
+                    println("❌ DEBUG: No Track:/Dist:/Track/Dist: patterns found anywhere in document")
+                }
+                return null
+            }
+            
+            println("✅ DEBUG: Using statistics section found with selector '$foundInSection'")
+            
+            // Parse Track: X:Y-Z-W format
+            val trackStats = parsePerformanceStats(statsSection, "Track:")
+            
+            // Parse Dist: X:Y-Z-W format  
+            val distanceStats = parsePerformanceStats(statsSection, "Dist:")
+            
+            // Parse Track/Dist: X:Y-Z-W format
+            val combinedStats = parsePerformanceStats(statsSection, "Track/Dist:")
+            
+            if (trackStats != null && distanceStats != null && combinedStats != null) {
+                println("✅ Successfully parsed track/distance statistics:")
+                println("   Track: ${trackStats.runs}:${trackStats.wins}-${trackStats.seconds}-${trackStats.thirds}")
+                println("   Distance: ${distanceStats.runs}:${distanceStats.wins}-${distanceStats.seconds}-${distanceStats.thirds}")
+                println("   Combined: ${combinedStats.runs}:${combinedStats.wins}-${combinedStats.seconds}-${combinedStats.thirds}")
+                
+                return TrackDistanceStats(
+                    trackStats = trackStats,
+                    distanceStats = distanceStats,
+                    combinedStats = combinedStats
+                )
+            } else {
+                println("⚠️ Could not parse all track/distance statistics")
+                return null
+            }
+            
+        } catch (e: Exception) {
+            println("❌ Error parsing track/distance statistics: ${e.message}")
+            return null
+        }
+    }
+    
+    /**
+     * Parse performance statistics in format "X:Y-Z-W" (runs:wins-seconds-thirds)
+     */
+    private fun parsePerformanceStats(section: Element, label: String): PerformanceStats? {
+        try {
+            val text = section.text()
+            val pattern = Regex("$label\\s*(\\d+):(\\d+)-(\\d+)-(\\d+)")
+            val match = pattern.find(text)
+            
+            if (match != null) {
+                val runs = match.groupValues[1].toInt()
+                val wins = match.groupValues[2].toInt()
+                val seconds = match.groupValues[3].toInt()
+                val thirds = match.groupValues[4].toInt()
+                
+                return PerformanceStats(
+                    runs = runs,
+                    wins = wins,
+                    seconds = seconds,
+                    thirds = thirds
+                )
+            } else {
+                println("⚠️ Could not find $label statistics in format X:Y-Z-W")
+                return null
+            }
+        } catch (e: Exception) {
+            println("❌ Error parsing $label statistics: ${e.message}")
+            return null
+        }
+    }
+    
+    /**
+     * Parse performance statistics from raw text in format "X:Y-Z-W" (runs:wins-seconds-thirds)
+     */
+    private fun parsePerformanceStatsFromText(text: String, label: String): PerformanceStats? {
+        try {
+            val pattern = Regex("$label\\s*(\\d+):(\\d+)-(\\d+)-(\\d+)")
+            val match = pattern.find(text)
+            
+            if (match != null) {
+                val runs = match.groupValues[1].toInt()
+                val wins = match.groupValues[2].toInt()
+                val seconds = match.groupValues[3].toInt()
+                val thirds = match.groupValues[4].toInt()
+                
+                return PerformanceStats(
+                    runs = runs,
+                    wins = wins,
+                    seconds = seconds,
+                    thirds = thirds
+                )
+            } else {
+                println("⚠️ Could not find $label statistics in format X:Y-Z-W in text")
+                return null
+            }
+        } catch (e: Exception) {
+            println("❌ Error parsing $label statistics from text: ${e.message}")
+            return null
         }
     }
 } 
