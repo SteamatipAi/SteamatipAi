@@ -81,8 +81,8 @@ class ScoringEngine {
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm) // Use historical relationship
-                val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm) // Use historical partnership
-                val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
+                val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm) // Use historical track condition performance
                 
                 val scoreBreakdown = ScoreBreakdown(
@@ -118,7 +118,7 @@ class ScoringEngine {
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = 0.0 // First-up horses get 0 for jockey-horse relationship
                 val jockeyTrainerPartnership = 0.0 // First-up horses get 0 for jockey-trainer partnership
-                val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = 0.0 // First-up horses get 0 for track condition history
                 
                 val scoreBreakdown = ScoreBreakdown(
@@ -151,8 +151,8 @@ class ScoringEngine {
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
-                val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm)
-                val combination = jockeyHorseRelationship + jockeyTrainerPartnership
+                val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
+                val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm)  // NEW LAW 9
                 
                 val totalScore = recentForm + classSuitability + trackDistance + 
@@ -168,8 +168,6 @@ class ScoringEngine {
                 println("   🏇 Law 6 - Jockey: ${String.format("%.1f", jockey)} points")
                 println("   👨‍🏫 Law 7 - Trainer: ${String.format("%.1f", trainer)} points")
                 println("   🤝 Law 8 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
-                println("   🤝 Law 8 - Jockey-Trainer Partnership: ${String.format("%.1f", jockeyTrainerPartnership)} points")
-                println("   🔗 Law 8 - Total Combination: ${String.format("%.1f", combination)} points")
                 println("   🌦️ Law 9 - Track Condition: ${String.format("%.1f", trackCondition)} points")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", totalScore)} points")
                 println("   ─".repeat(50))
@@ -525,7 +523,7 @@ class ScoringEngine {
         
         // Jockey/trainer combination success
         val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
-        val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm)
+        val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
         val combinationScore = jockeyHorseRelationship + jockeyTrainerPartnership
         score += combinationScore
         
@@ -547,8 +545,8 @@ class ScoringEngine {
         println("   🏇 Jockey Premiership (x1.2): ${String.format("%.1f", jockeyScore)} points")
         println("   📈 Up Results: ${String.format("%.1f", upScore)} points")
         println("   🤝 Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
-        println("   🤝 Jockey-Trainer Partnership: ${String.format("%.1f", jockeyTrainerPartnership)} points")
-        println("   🔗 Total Combination: ${String.format("%.1f", combinationScore)} points")
+        // Removed jockey-trainer partnership logging
+        println("   🔗 Law 8 Total: ${String.format("%.1f", combinationScore)} points")
         println("   🚪 Barrier: ${String.format("%.1f", barrierScore)} points")
         println("   ⚠️ Form Penalty: -${String.format("%.1f", formPenalty)} points")
         println("   💯 TOTAL SCORE: ${String.format("%.1f", score)} points")
@@ -595,7 +593,7 @@ class ScoringEngine {
         
         // 6. JOCKEY-TRAINER COMBINATION SUCCESS (4 points max)
         val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
-        val jockeyTrainerPartnership = calculateJockeyTrainerPartnershipScore(horse, horseForm)
+        val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
         val combinationScore = (jockeyHorseRelationship + jockeyTrainerPartnership) * 0.5
         score += combinationScore
         println("🏇 First Starter ${horse.name} - Combination Score: $combinationScore")
@@ -694,14 +692,33 @@ class ScoringEngine {
         return class1 < class2
     }
     
+    /**
+     * Normalize names for matching by removing common prefixes and suffixes
+     * Handles cases like "Ms Jamie Melham" vs "Jamie Melham" and "Mick Price & Michael Kent jnr" vs "Mick Price & Michael Kent"
+     */
+    private fun normalizeNameForMatching(name: String): String {
+        return name.trim()
+            // Remove common prefixes
+            .replace(Regex("^(Mr|Ms|Mrs|Miss|Dr|Prof)\\.?\\s+", RegexOption.IGNORE_CASE), "")
+            // Remove common suffixes
+            .replace(Regex("\\s+(jnr|snr|jr|sr|j\\.|s\\.)\\.?$", RegexOption.IGNORE_CASE), "")
+            // Remove parenthetical content like (Jnr), (Snr), etc.
+            .replace(Regex("\\s*\\([^)]*\\)", RegexOption.IGNORE_CASE), "")
+            // Remove extra whitespace
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+    
     private fun getJockeyRank(jockeyName: String, rankings: List<JockeyPremiership>): Int {
-        val found = rankings.find { it.name.equals(jockeyName, ignoreCase = true) }
+        val found = rankings.find { 
+            normalizeNameForMatching(it.name).equals(normalizeNameForMatching(jockeyName), ignoreCase = true) 
+        }
         if (found != null) {
-            println("🏇 DEBUG: Found jockey '${jockeyName}' at rank ${found.rank}")
+            println("🏇 DEBUG: Found jockey '${jockeyName}' (normalized: '${normalizeNameForMatching(jockeyName)}') at rank ${found.rank}")
         } else {
-            println("🏇 DEBUG: Jockey '${jockeyName}' NOT FOUND in rankings")
+            println("🏇 DEBUG: Jockey '${jockeyName}' (normalized: '${normalizeNameForMatching(jockeyName)}') NOT FOUND in rankings")
             // Show first few ranking names for debugging
-            println("🏇 DEBUG: Available jockeys (first 10): ${rankings.take(10).map { it.name }}")
+            println("🏇 DEBUG: Available jockeys (first 10): ${rankings.take(10).map { "${it.name} (normalized: ${normalizeNameForMatching(it.name)})" }}")
         }
         return found?.rank ?: Int.MAX_VALUE
     }
@@ -736,13 +753,23 @@ class ScoringEngine {
     }
     
     private fun getTrainerRank(trainerName: String, rankings: List<TrainerPremiership>): Int {
-        val found = rankings.find { it.name.equals(trainerName, ignoreCase = true) }
+        println("👨‍🏫 DEBUG: Searching for trainer: '$trainerName'")
+        println("👨‍🏫 DEBUG: Normalized search name: '${normalizeNameForMatching(trainerName)}'")
+        
+        val found = rankings.find { 
+            val normalizedRankingName = normalizeNameForMatching(it.name)
+            val normalizedSearchName = normalizeNameForMatching(trainerName)
+            val matches = normalizedRankingName.equals(normalizedSearchName, ignoreCase = true)
+            println("👨‍🏫 DEBUG: Comparing '${it.name}' (normalized: '$normalizedRankingName') with '$trainerName' (normalized: '$normalizedSearchName') = $matches")
+            matches
+        }
+        
         if (found != null) {
-            println("👨‍🏫 DEBUG: Found trainer '${trainerName}' at rank ${found.rank}")
+            println("👨‍🏫 DEBUG: Found trainer '${trainerName}' (normalized: '${normalizeNameForMatching(trainerName)}') at rank ${found.rank}")
         } else {
-            println("👨‍🏫 DEBUG: Trainer '${trainerName}' NOT FOUND in rankings")
+            println("👨‍🏫 DEBUG: Trainer '${trainerName}' (normalized: '${normalizeNameForMatching(trainerName)}') NOT FOUND in rankings")
             // Show first few ranking names for debugging
-            println("👨‍🏫 DEBUG: Available trainers (first 10): ${rankings.take(10).map { it.name }}")
+            println("👨‍🏫 DEBUG: Available trainers (first 10): ${rankings.take(10).map { "${it.name} (normalized: ${normalizeNameForMatching(it.name)})" }}")
         }
         return found?.rank ?: Int.MAX_VALUE
     }
@@ -800,57 +827,70 @@ class ScoringEngine {
     
     /**
      * Calculate jockey-horse relationship score (4 points max)
-     * Based on how many times the jockey has ridden this horse in last 5 starts
+     * Based on previous wins with this jockey on this horse
      */
     private fun calculateJockeyHorseRelationshipScore(horse: Horse, horseForm: HorseForm): Double {
-        if (horseForm.last5Races.isEmpty()) return 0.0
+        println("🔍 LAW 8 DEBUG: Starting Jockey-Horse Relationship calculation for ${horse.name}")
+        
+        if (horseForm.last5Races.isEmpty()) {
+            println("🔍 LAW 8 DEBUG: No historical races available for ${horse.name}")
+            return 0.0
+        }
         
         val currentJockey = horse.jockey
-        if (currentJockey.isEmpty()) return 0.0
-        
-        // Count how many times this jockey has ridden this horse in last 5 starts
-        val jockeyRides = horseForm.last5Races.count { race ->
-            race.jockey?.equals(currentJockey, ignoreCase = true) == true
+        if (currentJockey.isEmpty()) {
+            println("🔍 LAW 8 DEBUG: No current jockey for ${horse.name}")
+            return 0.0
         }
         
-        val score = when (jockeyRides) {
-            3, 4, 5 -> 4.0  // Strong relationship (3+ rides)
-            2 -> 2.5         // Moderate relationship (2 rides)
-            1 -> 1.0         // Weak relationship (1 ride)
-            else -> 0.0      // No relationship (0 rides)
+        println("🔍 LAW 8 DEBUG: Current jockey: '$currentJockey'")
+        println("🔍 LAW 8 DEBUG: Historical races (${horseForm.last5Races.size}):")
+        
+        horseForm.last5Races.forEachIndexed { index, race ->
+            println("   Race ${index + 1}: Position=${race.position}, Jockey='${race.jockey}', Trainer='${race.trainer}'")
         }
         
-        println("🏇 Jockey-Horse Relationship: $currentJockey has ridden ${horse.name} $jockeyRides times in last 5 starts = $score points")
+        // Look for previous wins with this jockey on this horse
+        // Use normalized names for comparison to handle prefixes/suffixes
+        val normalizedCurrentJockey = normalizeNameForMatching(currentJockey)
+        println("🔍 LAW 8 DEBUG: Normalized current jockey: '$currentJockey' -> '$normalizedCurrentJockey'")
+        
+        val jockeyWins = horseForm.last5Races.count { race ->
+            val historicalJockey = race.jockey ?: ""
+            val normalizedHistoricalJockey = normalizeNameForMatching(historicalJockey)
+            val jockeyMatch = normalizedHistoricalJockey.equals(normalizedCurrentJockey, ignoreCase = true)
+            val isWin = race.position == 1
+            println("🔍 LAW 8 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${race.position} is win? $isWin")
+            jockeyMatch && isWin
+        }
+        
+        val jockeyPlaces = horseForm.last5Races.count { race ->
+            val historicalJockey = race.jockey ?: ""
+            val normalizedHistoricalJockey = normalizeNameForMatching(historicalJockey)
+            val jockeyMatch = normalizedHistoricalJockey.equals(normalizedCurrentJockey, ignoreCase = true)
+            val isPlace = race.position in 2..3
+            println("🔍 LAW 8 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${race.position} is place? $isPlace")
+            jockeyMatch && isPlace
+        }
+        
+        val score = when {
+            jockeyWins >= 2 -> 4.0  // Multiple wins together
+            jockeyWins == 1 -> 2.0  // One win together
+            jockeyPlaces >= 2 -> 1.0  // Multiple places together
+            jockeyPlaces == 1 -> 0.5  // One place together
+            else -> 0.0  // No successful results together
+        }
+        
+        println("🏇 Jockey-Horse Relationship: $currentJockey has ${jockeyWins} wins and ${jockeyPlaces} places with ${horse.name} = $score points")
         
         return score
     }
     
     /**
      * Calculate jockey-trainer partnership score (4 points max)
-     * Based on how many times the jockey has ridden for this trainer in last 5 starts
+     * Based on previous wins with this jockey for this trainer
      */
-    private fun calculateJockeyTrainerPartnershipScore(horse: Horse, horseForm: HorseForm): Double {
-        if (horseForm.last5Races.isEmpty()) return 0.0
-        
-        val currentTrainer = horse.trainer
-        if (currentTrainer.isEmpty()) return 0.0
-        
-        // Count how many times this jockey has ridden for this trainer in last 5 starts
-        val trainerRides = horseForm.last5Races.count { race ->
-            race.trainer?.equals(currentTrainer, ignoreCase = true) == true
-        }
-        
-        val score = when (trainerRides) {
-            3, 4, 5 -> 4.0  // Strong partnership (3+ rides)
-            2 -> 2.5         // Moderate partnership (2 rides)
-            1 -> 1.0         // Weak partnership (1 ride)
-            else -> 0.0      // No partnership (0 rides)
-        }
-        
-        println("🏇 Jockey-Trainer Partnership: ${horse.jockey} has ridden for $currentTrainer $trainerRides times in last 5 starts = $score points")
-        
-        return score
-    }
+    // Removed jockey-trainer partnership scoring - focusing only on jockey-horse relationship
     
     /**
      * Law 9: Track Condition Suitability (8 points)

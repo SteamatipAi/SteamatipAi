@@ -880,19 +880,103 @@ class ScrapingService {
     }
     
     /**
+     * Validate that a name looks like a jockey name (not a horse name)
+     */
+    private fun isValidJockeyName(name: String): Boolean {
+        // Common horse name patterns that we want to exclude
+        val horseNamePatterns = listOf(
+            "Kyokushin", "Gemini Dancer", "Gift Of Oratory", "Mystic Vamp", "Corona Lad",
+            "Until Valhalla", "Outta Compton", "Princess Que", "Keep Your Cool", "Choice",
+            "De Bergerac", "Campari Twist", "Forget Jack", "Tassron", "Autumnheat",
+            "Brave Miss", "Bird", "Lake Vostok", "Pariah Pearl", "Cafe Millenium",
+            "Too Darn Discreet", "Neil", "Extreme Virtue", "Raikoke", "Thedoctoroflove",
+            "Moonlight Circus", "Cafe", "Dubai Watch", "Bold Strike", "Sigiriya Rock",
+            "Barrier", "Weight", "Rtg", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"
+        )
+        
+        // Check if it's a known horse name or non-jockey word
+        if (horseNamePatterns.any { horseName -> name.equals(horseName, ignoreCase = true) }) {
+            return false
+        }
+        
+        // Basic validation
+        if (name.length < 3 || name.length > 25) return false // Jockey names are typically 3-25 characters
+        if (name.matches(Regex("[A-Z\\s]+"))) return false // All caps suggests horse name
+        if (name.contains("(") || name.contains(")")) return false // Parentheses suggest horse name
+        if (name.contains("&")) return false // "&" suggests trainer partnership, not jockey
+        
+        // Check for common horse name patterns
+        if (name.contains(" Of ") || name.contains(" The ") || name.contains(" And ")) return false
+        if (name.matches(Regex(".*\\s+(Miss|Sir|Lady|Lord|Prince|Princess|King|Queen).*"))) return false
+        
+        // Check for common jockey name patterns (First Last format, typically 2-3 words)
+        val jockeyPattern = Regex("^[A-Z][a-z]+(?:\\s+[A-Z][a-z]+){0,2}$")
+        val isValidFormat = jockeyPattern.matches(name) && name.split(" ").size in 2..3
+        
+        // Additional check: make sure it doesn't look like a horse name
+        val wordCount = name.split(" ").size
+        val hasProperCase = name.matches(Regex("^[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*$"))
+        
+        return isValidFormat && hasProperCase && wordCount >= 2
+    }
+    
+    /**
+     * Validate that a name looks like a trainer name (not a horse name)
+     */
+    private fun isValidTrainerName(name: String): Boolean {
+        // Common horse name patterns that we want to exclude
+        val horseNamePatterns = listOf(
+            "Kyokushin", "Gemini Dancer", "Gift Of Oratory", "Mystic Vamp", "Corona Lad",
+            "Until Valhalla", "Outta Compton", "Princess Que", "Keep Your Cool", "Choice",
+            "De Bergerac", "Campari Twist", "Forget Jack", "Tassron", "Autumnheat",
+            "Brave Miss", "Bird", "Lake Vostok", "Pariah Pearl", "Cafe Millenium",
+            "Too Darn Discreet", "Neil", "Extreme Virtue", "Raikoke", "Thedoctoroflove",
+            "Moonlight Circus", "Cafe", "Dubai Watch", "Bold Strike", "Sigiriya Rock",
+            "Barrier", "Weight", "Rtg", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"
+        )
+        
+        // Check if it's a known horse name or non-trainer word
+        if (horseNamePatterns.any { horseName -> name.equals(horseName, ignoreCase = true) }) {
+            return false
+        }
+        
+        // Basic validation
+        if (name.length < 3 || name.length > 40) return false // Trainer names are typically 3-40 characters
+        if (name.matches(Regex("[A-Z\\s]+"))) return false // All caps suggests horse name
+        if (name.contains("(") || name.contains(")")) return false // Parentheses suggest horse name
+        
+        // Check for common horse name patterns
+        if (name.contains(" Of ") || name.contains(" The ") || name.contains(" And ")) return false
+        if (name.matches(Regex(".*\\s+(Miss|Sir|Lady|Lord|Prince|Princess|King|Queen).*"))) return false
+        
+        // Check for common trainer name patterns (can include "&" for partnerships)
+        val trainerPattern = Regex("^[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*(?:\\s+&\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)*$")
+        val isValidFormat = trainerPattern.matches(name)
+        
+        // Additional check: make sure it doesn't look like a horse name
+        val wordCount = name.split(" ").size
+        val hasProperCase = name.matches(Regex("^[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*(?:\\s+&\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)*$"))
+        
+        return isValidFormat && hasProperCase && wordCount >= 2
+    }
+    
+    /**
      * Clean up jockey name by removing apprentice claims and weights
      */
     private fun cleanJockeyName(jockeyRaw: String): String {
         // Remove apprentice claims like "(a2/52.5kg)" or "(a3/50kg)"
-        val cleaned = Regex("\\(a\\d+/\\d+\\.?\\d*kg\\)").replace(jockeyRaw, "").trim()
+        var cleaned = Regex("\\(a\\d+/\\d+\\.?\\d*kg\\)").replace(jockeyRaw, "").trim()
         
         // Remove any remaining parentheses with weights
-        val cleaned2 = Regex("\\(\\d+\\.?\\d*kg\\)").replace(cleaned, "").trim()
+        cleaned = Regex("\\(\\d+\\.?\\d*kg\\)").replace(cleaned, "").trim()
         
         // Remove any remaining parentheses with numbers
-        val cleaned3 = Regex("\\(\\d+\\)").replace(cleaned2, "").trim()
+        cleaned = Regex("\\(\\d+\\)").replace(cleaned, "").trim()
         
-        return cleaned3
+        // Remove common prefixes like Ms, Mr, etc.
+        cleaned = cleaned.replace(Regex("^(Mr|Ms|Mrs|Miss|Dr|Prof)\\.?\\s+", RegexOption.IGNORE_CASE), "").trim()
+        
+        return cleaned
     }
     
     /**
@@ -900,7 +984,10 @@ class ScrapingService {
      */
     private fun cleanTrainerName(trainerRaw: String): String {
         // Remove any parentheses with additional info
-        val cleaned = Regex("\\([^)]*\\)").replace(trainerRaw, "").trim()
+        var cleaned = Regex("\\([^)]*\\)").replace(trainerRaw, "").trim()
+        
+        // Remove common suffixes like jnr, snr, etc.
+        cleaned = cleaned.replace(Regex("\\s+(jnr|snr|jr|sr|j\\.|s\\.)\\.?$", RegexOption.IGNORE_CASE), "").trim()
         
         return cleaned
     }
@@ -1359,22 +1446,118 @@ class ScrapingService {
                 println("✅ Found margin: ${margin}L")
             }
             
-            // Extract jockey
-            // Look for a name after prize money and before weight/barrier
-            // Example: "$27,000 ($14,850) Joe Bowditch 57.5kg" or "$27,000 Luke Cartwright (a) 57kg (cd 55kg) Barrier 9"
-            val jockeyPattern = Regex("\\$\\d{1,3}(?:,\\d{3})*(?:\\s+\\([^)]+\\))?\\s+([A-Za-z\\s.'-]+?)(?:\\s+\\(a[^)]+\\))?\\s+\\d+\\.?\\d*kg")
-            val jockeyMatch = jockeyPattern.find(allText)
-            if (jockeyMatch != null) {
-                jockey = cleanJockeyName(jockeyMatch.groupValues[1].trim())
-                println("✅ Found jockey: $jockey")
-            } else {
-                println("⚠️ Could not extract jockey using specific pattern.")
-                // Fallback: try to find any capitalized name that looks like a jockey before a weight
-                val fallbackJockeyPattern = Regex("([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)\\s+\\d+\\.?\\d*kg")
-                val fallbackJockeyMatch = fallbackJockeyPattern.find(allText)
-                if (fallbackJockeyMatch != null) {
-                    jockey = cleanJockeyName(fallbackJockeyMatch.groupValues[1].trim())
-                    println("✅ Found jockey (fallback): $jockey")
+            // DEBUG: Print the full text to understand the actual format
+            println("🔍 DEBUG: Full race result text: $allText")
+            
+            // Extract jockey and trainer using a more comprehensive approach
+            // Let's try multiple patterns to find jockey and trainer names
+            
+            // Pattern 1: Look for jockey name after prize money and before weight - more specific
+            val jockeyPattern1 = Regex("\\$\\d{1,3}(?:,\\d{3})*(?:\\s+\\([^)]+\\))?\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,2})\\s+\\d+\\.?\\d*kg")
+            val jockeyMatch1 = jockeyPattern1.find(allText)
+            if (jockeyMatch1 != null) {
+                val potentialJockey = jockeyMatch1.groupValues[1].trim()
+                println("🔍 DEBUG: Pattern 1 found potential jockey: '$potentialJockey'")
+                if (isValidJockeyName(potentialJockey)) {
+                    jockey = cleanJockeyName(potentialJockey)
+                    println("✅ Found jockey (pattern 1): $jockey")
+                } else {
+                    println("⚠️ Pattern 1: '$potentialJockey' doesn't look like a jockey name")
+                }
+            }
+            
+            // Pattern 2: Look for jockey name before weight - more specific (2-3 words, proper case)
+            if (jockey.isEmpty()) {
+                val jockeyPattern2 = Regex("([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,2})\\s+\\d+\\.?\\d*kg")
+                val jockeyMatch2 = jockeyPattern2.find(allText)
+                if (jockeyMatch2 != null) {
+                    val potentialJockey = jockeyMatch2.groupValues[1].trim()
+                    println("🔍 DEBUG: Pattern 2 found potential jockey: '$potentialJockey'")
+                    if (isValidJockeyName(potentialJockey)) {
+                        jockey = cleanJockeyName(potentialJockey)
+                        println("✅ Found jockey (pattern 2): $jockey")
+                    } else {
+                        println("⚠️ Pattern 2: '$potentialJockey' doesn't look like a jockey name")
+                    }
+                }
+            }
+            
+            // Pattern 3: Look for jockey name in the format "Name (a) Weight" or "Name Weight" - more specific
+            if (jockey.isEmpty()) {
+                val jockeyPattern3 = Regex("([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,2})(?:\\s+\\([^)]+\\))?\\s+\\d+\\.?\\d*kg")
+                val jockeyMatch3 = jockeyPattern3.find(allText)
+                if (jockeyMatch3 != null) {
+                    val potentialJockey = jockeyMatch3.groupValues[1].trim()
+                    println("🔍 DEBUG: Pattern 3 found potential jockey: '$potentialJockey'")
+                    if (isValidJockeyName(potentialJockey)) {
+                        jockey = cleanJockeyName(potentialJockey)
+                        println("✅ Found jockey (pattern 3): $jockey")
+                    } else {
+                        println("⚠️ Pattern 3: '$potentialJockey' doesn't look like a jockey name")
+                    }
+                }
+            }
+            
+            // Extract trainer - try multiple patterns
+            // Pattern 1: Look for trainer name after weight and before "Barrier" - more specific
+            val trainerPattern1 = Regex("\\d+\\.?\\d*kg\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,3})\\s+Barrier")
+            val trainerMatch1 = trainerPattern1.find(allText)
+            if (trainerMatch1 != null) {
+                val potentialTrainer = trainerMatch1.groupValues[1].trim()
+                println("🔍 DEBUG: Pattern 1 found potential trainer: '$potentialTrainer'")
+                if (isValidTrainerName(potentialTrainer)) {
+                    trainer = cleanTrainerName(potentialTrainer)
+                    println("✅ Found trainer (pattern 1): $trainer")
+                } else {
+                    println("⚠️ Pattern 1: '$potentialTrainer' doesn't look like a trainer name")
+                }
+            }
+            
+            // Pattern 2: Look for trainer name after jockey and weight - more specific
+            if (trainer.isEmpty() && jockey.isNotEmpty()) {
+                val trainerPattern2 = Regex("$jockey\\s+\\d+\\.?\\d*kg\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,3})(?:\\s+Barrier|\\s+\\d+)")
+                val trainerMatch2 = trainerPattern2.find(allText)
+                if (trainerMatch2 != null) {
+                    val potentialTrainer = trainerMatch2.groupValues[1].trim()
+                    println("🔍 DEBUG: Pattern 2 found potential trainer: '$potentialTrainer'")
+                    if (isValidTrainerName(potentialTrainer)) {
+                        trainer = cleanTrainerName(potentialTrainer)
+                        println("✅ Found trainer (pattern 2): $trainer")
+                    } else {
+                        println("⚠️ Pattern 2: '$potentialTrainer' doesn't look like a trainer name")
+                    }
+                }
+            }
+            
+            // Pattern 3: Look for trainer name in the general area after weight - more specific
+            if (trainer.isEmpty()) {
+                val trainerPattern3 = Regex("\\d+\\.?\\d*kg\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,3})(?:\\s+(?:Barrier|\\d+))")
+                val trainerMatch3 = trainerPattern3.find(allText)
+                if (trainerMatch3 != null) {
+                    val potentialTrainer = trainerMatch3.groupValues[1].trim()
+                    println("🔍 DEBUG: Pattern 3 found potential trainer: '$potentialTrainer'")
+                    if (isValidTrainerName(potentialTrainer)) {
+                        trainer = cleanTrainerName(potentialTrainer)
+                        println("✅ Found trainer (pattern 3): $trainer")
+                    } else {
+                        println("⚠️ Pattern 3: '$potentialTrainer' doesn't look like a trainer name")
+                    }
+                }
+            }
+            
+            // Pattern 4: Look for trainer name after the jockey name and weight - more specific
+            if (trainer.isEmpty() && jockey.isNotEmpty()) {
+                val trainerPattern4 = Regex("$jockey\\s+\\d+\\.?\\d*kg\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,3})(?:\\s+Barrier|\\s+\\d+)")
+                val trainerMatch4 = trainerPattern4.find(allText)
+                if (trainerMatch4 != null) {
+                    val potentialTrainer = trainerMatch4.groupValues[1].trim()
+                    println("🔍 DEBUG: Pattern 4 found potential trainer: '$potentialTrainer'")
+                    if (isValidTrainerName(potentialTrainer)) {
+                        trainer = cleanTrainerName(potentialTrainer)
+                        println("✅ Found trainer (pattern 4): $trainer")
+                    } else {
+                        println("⚠️ Pattern 4: '$potentialTrainer' doesn't look like a trainer name")
+                    }
                 }
             }
             

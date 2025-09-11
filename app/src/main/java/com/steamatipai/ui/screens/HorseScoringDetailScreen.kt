@@ -219,10 +219,10 @@ fun HorseScoringDetailScreen(
             // Law 8 - Combination
             ScoringLawCard(
                 lawNumber = 8,
-                lawName = "Jockey-Horse & Jockey-Trainer",
+                lawName = "Jockey-Horse Relationship",
                 score = scoredHorse.scoreBreakdown.combination,
                 maxScore = 8.0,
-                description = "Historical success of jockey with this horse and trainer"
+                description = "Historical success of jockey with this horse"
             )
             
             // Law 9 - Track Condition
