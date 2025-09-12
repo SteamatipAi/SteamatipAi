@@ -152,7 +152,8 @@ class RaceAnalysisService(
                             race = race,
                             topSelections = emptyList(),
                             processingTime = 0,
-                            error = e.message ?: "Race analysis failed"
+                            error = e.message ?: "Race analysis failed",
+                            bettingRecommendations = emptyList()
                         )
                     }
                 }
@@ -253,7 +254,8 @@ class RaceAnalysisService(
                 race = race,
                 topSelections = emptyList(),
                 allHorses = emptyList(),
-                error = "No horses with real form data found - all horses excluded"
+                error = "No horses with real form data found - all horses excluded",
+                bettingRecommendations = emptyList()
             )
         }
         
@@ -269,10 +271,14 @@ class RaceAnalysisService(
         }
         println("   Total horses analyzed: ${scoredHorses.size}")
         
+        // Calculate betting recommendations based on score gaps
+        val bettingRecommendations = scoringEngine.classifyBettingRecommendation(scoredHorses)
+        
         return RaceResult(
             race = race,
             topSelections = scoredHorses.take(5), // Return TOP 5 horses as required
-            allHorses = scoredHorses
+            allHorses = scoredHorses,
+            bettingRecommendations = bettingRecommendations
         )
     }
     

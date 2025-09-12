@@ -32,6 +32,7 @@ import androidx.compose.foundation.Image
 import com.steamatipai.data.models.ScoredHorse
 import com.steamatipai.data.models.Race
 import com.steamatipai.data.models.RaceResult
+import com.steamatipai.data.models.BetType
 import com.steamatipai.service.RaceAnalysisService
 import com.steamatipai.data.models.Track
 import com.steamatipai.R
@@ -421,11 +422,25 @@ fun RaceResultCard(
             )
 
             raceResult.topSelections.take(5).forEachIndexed { index, horse ->
+                // Only the TOP horse (index 0) gets special colors if it qualifies
+                val horseBetType = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                    val topRecommendation = raceResult.bettingRecommendations[0]
+                    // Only apply special colors if it's not CONSIDER (minimal gap)
+                    if (topRecommendation.betType != BetType.CONSIDER) {
+                        topRecommendation.betType
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
+                
                 HorseSelectionItem(
                     horse = horse,
                     position = index + 1,
                     modifier = Modifier.padding(bottom = 8.dp),
-                    onClick = { onHorseClick(horse) }
+                    onClick = { onHorseClick(horse) },
+                    betType = horseBetType
                 )
             }
         }
@@ -437,7 +452,8 @@ fun HorseSelectionItem(
     horse: ScoredHorse,
     position: Int,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    betType: BetType? = null
 ) {
     Card(
         modifier = modifier
@@ -447,7 +463,27 @@ fun HorseSelectionItem(
         colors = CardDefaults.cardColors(
             containerColor = Color.Black
         ),
-        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.7f))
+        border = when (betType) {
+            BetType.SUPER_BET -> BorderStroke(
+                width = 3.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(Color(0xFF00FF00), Color(0xFF00FF80), Color(0xFF00FF00))
+                )
+            )
+            BetType.BEST_BET -> BorderStroke(
+                width = 2.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(Color(0xFF0080FF), Color(0xFF00BFFF), Color(0xFF0080FF))
+                )
+            )
+            BetType.GOOD_BET -> BorderStroke(
+                width = 1.5.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(Color(0xFF8000FF), Color(0xFFBF00FF), Color(0xFF8000FF))
+                )
+            )
+            else -> BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.7f))
+        }
     ) {
         Row(
             modifier = Modifier
@@ -544,31 +580,58 @@ fun shareResults(
     }
     
     val shareText = buildString {
-        appendLine("🏇 Race Analysis Results")
+        appendLine("🏇 STEAMA TIP AI - RACE ANALYSIS RESULTS")
+        appendLine("═══════════════════════════════════════════")
         appendLine("📅 Date: $selectedDate")
         appendLine("🏁 Tracks: ${selectedTracks.joinToString(", ")}")
         appendLine("⏱️ Analysis Time: ${processingTime}ms")
         appendLine()
         
         results.sortedBy { it.race.raceNumber }.forEach { raceResult ->
-            appendLine("Race ${raceResult.race.raceNumber}: ${raceResult.race.name}")
-            appendLine("📍 ${raceResult.race.venue} • ${raceResult.race.time} • ${raceResult.race.distance}m")
-            appendLine("Top 5 Selections:")
+            appendLine("┌─────────────────────────────────────────┐")
+            appendLine("│ RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
+            appendLine("│ 📍 ${raceResult.race.venue} • ⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
+            appendLine("│ TOP 5 SELECTIONS:")
+            appendLine("└─────────────────────────────────────────┘")
+            appendLine()
             
             raceResult.topSelections.take(5).forEachIndexed { index, horse ->
+                // Determine if this is the top horse with special betting recommendation
+                val isTopHorseWithBettingRecommendation = index == 0 && raceResult.bettingRecommendations.isNotEmpty()
+                val topRecommendation = if (isTopHorseWithBettingRecommendation) raceResult.bettingRecommendations[0] else null
+                val hasSpecialBetting = topRecommendation?.betType != null && topRecommendation.betType != BetType.CONSIDER
+                
                 val position = index + 1
-                appendLine("${position}. #${horse.horse.number} ${horse.horse.name} (Score: ${String.format("%.1f", horse.score)})")
-                appendLine("   J: ${horse.horse.jockey} | T: ${horse.horse.trainer}")
-                appendLine("   Barrier: ${horse.horse.barrier} | Weight: ${horse.horse.weight}kg")
+                
+                // Add betting indicator for top horse
+                val bettingIndicator = if (hasSpecialBetting) {
+                    when (topRecommendation!!.betType) {
+                        BetType.SUPER_BET -> "🟢 ★ SUPER BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
+                        BetType.BEST_BET -> "🔵 ★ BEST BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
+                        BetType.GOOD_BET -> "🟣 ★ GOOD BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
+                        else -> ""
+                    }
+                } else ""
+                
+                appendLine("${position}. #${horse.horse.number} ${horse.horse.name}")
+                appendLine("   Score: ${String.format("%.1f", horse.score)}")
+                if (bettingIndicator.isNotEmpty()) {
+                    appendLine("   $bettingIndicator")
+                }
+                appendLine("   Jockey: ${horse.horse.jockey}")
+                appendLine("   Trainer: ${horse.horse.trainer}")
+                appendLine("   Barrier: ${horse.horse.barrier} • Weight: ${horse.horse.weight}kg")
                 if (horse.isStandout) {
-                    appendLine("   ⭐ Standout Selection")
+                    appendLine("   ⭐ STANDOUT SELECTION")
                 }
                 appendLine()
             }
-            appendLine("---")
+            appendLine("═══════════════════════════════════════════")
+            appendLine()
         }
         
         appendLine("Generated by SteamaTip AI")
+        appendLine("Advanced horse racing analysis with real-time data")
     }
     
     val shareIntent = Intent().apply {

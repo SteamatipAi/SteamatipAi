@@ -83,7 +83,8 @@ data class RaceResult(
     val topSelections: List<ScoredHorse>,
     val processingTime: Long = 0,
     val allHorses: List<ScoredHorse> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val bettingRecommendations: List<BettingRecommendation> = emptyList()
 )
 
 // Track information
@@ -195,6 +196,21 @@ data class HorseForm(
     val upResults: UpResult,
     val trialSectionalTimes: List<Double>,
     val trackDistanceStats: TrackDistanceStats? = null
+)
+
+// Betting recommendation types
+enum class BetType {
+    SUPER_BET,    // 8+ points clear of 2nd place
+    BEST_BET,     // 5-7 points clear of 2nd place  
+    GOOD_BET,     // 3-4 points clear of 2nd place
+    CONSIDER      // 1-2 points clear of 2nd place
+}
+
+// Betting recommendation data
+data class BettingRecommendation(
+    val betType: BetType,
+    val pointGap: Double,
+    val confidence: String
 )
 
 

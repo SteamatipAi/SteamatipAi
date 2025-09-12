@@ -959,45 +959,28 @@ class ScoringEngine {
         val secondHorse = horses[1]
         val pointGap = topHorse.score - secondHorse.score
         
+        // Only the TOP horse gets a betting recommendation based on its gap from 2nd place
         val betType = when {
             pointGap >= 8.0 -> BetType.SUPER_BET
             pointGap >= 5.0 -> BetType.BEST_BET
             pointGap >= 3.0 -> BetType.GOOD_BET
-            else -> BetType.CONSIDER
+            else -> null // No special color for minimal gaps
         }
         
-        val confidence = when (betType) {
-            BetType.SUPER_BET -> "Highest confidence - significant advantage"
-            BetType.BEST_BET -> "High confidence - clear advantage"
-            BetType.GOOD_BET -> "Moderate confidence - some advantage"
-            BetType.CONSIDER -> "Lower confidence - minimal advantage"
-        }
-        
-        recommendations.add(BettingRecommendation(betType, pointGap, confidence))
-        
-        // Add recommendations for other horses if they have significant gaps
-        for (i in 1 until horses.size - 1) {
-            val currentHorse = horses[i]
-            val nextHorse = horses[i + 1]
-            val gap = currentHorse.score - nextHorse.score
-            
-            if (gap >= 3.0) {
-                val horseBetType = when {
-                    gap >= 8.0 -> BetType.SUPER_BET
-                    gap >= 5.0 -> BetType.BEST_BET
-                    gap >= 3.0 -> BetType.GOOD_BET
-                    else -> BetType.CONSIDER
-                }
-                
-                val horseConfidence = when (horseBetType) {
-                    BetType.SUPER_BET -> "Strong contender - significant gap"
-                    BetType.BEST_BET -> "Good contender - clear gap"
-                    BetType.GOOD_BET -> "Decent contender - some gap"
-                    BetType.CONSIDER -> "Possible contender - minimal gap"
-                }
-                
-                recommendations.add(BettingRecommendation(horseBetType, gap, horseConfidence))
+        if (betType != null) {
+            val confidence = when (betType) {
+                BetType.SUPER_BET -> "Highest confidence - significant advantage"
+                BetType.BEST_BET -> "High confidence - clear advantage"
+                BetType.GOOD_BET -> "Moderate confidence - some advantage"
+                else -> "Lower confidence - minimal advantage"
             }
+            
+            recommendations.add(BettingRecommendation(betType, pointGap, confidence))
+        }
+        
+        // All other horses get no recommendation (null betType = standard gold border)
+        for (i in 1 until horses.size) {
+            recommendations.add(BettingRecommendation(BetType.CONSIDER, 0.0, ""))
         }
         
         return recommendations
@@ -1023,16 +1006,4 @@ class ScoringEngine {
         DROPPING, SIMILAR, RISING
     }
 
-    enum class BetType {
-        SUPER_BET,    // 8+ points clear of 2nd place
-        BEST_BET,     // 5-7 points clear of 2nd place  
-        GOOD_BET,     // 3-4 points clear of 2nd place
-        CONSIDER      // 1-2 points clear of 2nd place
-    }
-
-    data class BettingRecommendation(
-        val betType: BetType,
-        val pointGap: Double,
-        val confidence: String
-    )
 }

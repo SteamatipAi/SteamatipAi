@@ -1,0 +1,5 @@
+[33mebbea74[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Fix jockey/trainer name extraction and validation - stable checkpoint before UI enhancements
+[33m7efdc7e[m[33m ([m[1;33mtag: [m[1;33mv1.0-final[m[33m)[m Final comprehensive update: Enhanced Law 3 parsing, fixed race navigation, improved scoring system, and added detailed debugging for track/distance statistics
+[33m75e1ed1[m Fix Law 1 scoring and race parsing issues
+[33m19f4fad[m UI improvements and share functionality
+[33m57c9411[m Add clickable horse results with detailed scoring breakdown
