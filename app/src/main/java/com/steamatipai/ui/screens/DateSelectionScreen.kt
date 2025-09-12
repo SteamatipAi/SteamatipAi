@@ -63,57 +63,89 @@ fun DateSelectionScreen(
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // App Title
-            Text(
-                text = "SteamaTip AI",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFFFD700), // Gold color
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // Top section - App Title Card (smaller proportion)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(0.7f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // App Title Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Black),
+                    border = BorderStroke(2.dp, Color(0xFFFFD700))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "SteamaTip AI",
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD700),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        Text(
+                            text = "Horse Racing Analysis",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFFFFD700),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
             
-            Text(
-                text = "Horse Racing Analysis",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFFFFD700), // Gold color
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            // Middle section - Date Selection Buttons (larger proportion)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1.2f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                DateButton(
+                    text = formatDateDisplay(today),
+                    subtitle = "",
+                    onClick = { onDateSelected(dateFormat.format(today.time)) },
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                DateButton(
+                    text = formatDateDisplay(tomorrow),
+                    subtitle = "",
+                    onClick = { onDateSelected(dateFormat.format(tomorrow.time)) },
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                DateButton(
+                    text = formatDateDisplay(dayAfter),
+                    subtitle = "",
+                    onClick = { onDateSelected(dateFormat.format(dayAfter.time)) },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
             
-            // Date Selection Buttons
-            DateButton(
-                text = formatDateDisplay(today),
-                subtitle = "",
-                onClick = { onDateSelected(dateFormat.format(today.time)) },
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            
-            DateButton(
-                text = formatDateDisplay(tomorrow),
-                subtitle = "",
-                onClick = { onDateSelected(dateFormat.format(tomorrow.time)) },
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            
-            DateButton(
-                text = formatDateDisplay(dayAfter),
-                subtitle = "",
-                onClick = { onDateSelected(dateFormat.format(dayAfter.time)) },
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            // Info Text
-            Text(
-                text = "Select a racing date to begin analysis",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFFFD700), // Gold color
-                textAlign = TextAlign.Center
-            )
+            // Bottom section - Info Text (smaller proportion)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(0.8f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Info Text
+                Text(
+                    text = "Select a racing date to begin analysis",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFFFD700), // Gold color
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -129,7 +161,7 @@ private fun DateButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp),
+            .height(96.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.Black,
@@ -138,19 +170,25 @@ private fun DateButton(
         border = BorderStroke(2.dp, Color(0xFFFFD700)) // Gold border
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
         ) {
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFFFD700) // Gold color
+                color = Color(0xFFFFD700), // Gold color
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             if (subtitle.isNotEmpty()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFFD700).copy(alpha = 0.8f) // Slightly transparent gold
+                    color = Color(0xFFFFD700).copy(alpha = 0.8f), // Slightly transparent gold
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         }

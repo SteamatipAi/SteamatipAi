@@ -114,14 +114,9 @@ fun HorseScoringDetailScreen(
                         color = Color(0xFFFFD700)
                     )
                     
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Saddle #${scoredHorse.horse.number}", color = Color.White, fontSize = 12.sp)
-                        Text("Barrier ${scoredHorse.horse.barrier}", color = Color.White, fontSize = 12.sp)
-                        Text("Weight: ${scoredHorse.horse.weight}kg", color = Color.White, fontSize = 12.sp)
-                    }
+                    Text("Saddle #${scoredHorse.horse.number}", color = Color.White, fontSize = 12.sp)
+                    Text("Barrier ${scoredHorse.horse.barrier}", color = Color.White, fontSize = 12.sp)
+                    Text("Weight: ${scoredHorse.horse.weight}kg", color = Color.White, fontSize = 12.sp)
                     
                     Text("Jockey: ${scoredHorse.horse.jockey}", color = Color.White, fontSize = 12.sp)
                     Text("Trainer: ${scoredHorse.horse.trainer}", color = Color.White, fontSize = 12.sp)
