@@ -294,7 +294,7 @@ class ScoringEngine {
      */
     private fun getCurrentSpellStatus(horse: Horse): String {
         val form = horse.form.trim()
-        println("🔍 Analyzing form string: '$form' for ${horse.name}")
+        println("🔍 Analysing form string: '$form' for ${horse.name}")
         
         if (form.isEmpty()) {
             println("🔍 No form data available")

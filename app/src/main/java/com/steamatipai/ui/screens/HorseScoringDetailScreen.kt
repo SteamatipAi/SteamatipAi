@@ -64,22 +64,36 @@ fun HorseScoringDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Header
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                TextButton(onClick = onBackClick) {
-                    Text("← Back", color = Color(0xFFFFD700))
+                // Back button on its own line, centered
+                Button(
+                    onClick = onBackClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFD700).copy(alpha = 0.2f)
+                    ),
+                    border = BorderStroke(2.dp, Color(0xFFFFD700)),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        "← Back to Horses", 
+                        color = Color(0xFFFFD700),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
                 
+                // Horse name on its own line with full width
                 Text(
                     text = scoredHorse.horse.name,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFFD700),
-                    modifier = Modifier.weight(1f)
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
             // Horse Basic Info Card

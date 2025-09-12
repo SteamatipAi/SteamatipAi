@@ -32,7 +32,7 @@ class RaceAnalysisService(
         val allResults = mutableListOf<RaceResult>()
         
         try {
-            // Analyze each track
+            // Analyse each track
             tracks.forEach { track ->
                 println("\n🏁 ANALYZING TRACK: ${track.name} (${track.state})")
                 
@@ -59,7 +59,7 @@ class RaceAnalysisService(
                         println("   Race ${race.raceNumber}: ${race.name} (${race.horses.size} horses) - ID: ${race.id}")
                     }
                     
-                    // Analyze each race
+                    // Analyse each race
                     races.forEach { race ->
                         println("\n🔍 Starting analysis of Race ${race.raceNumber} (ID: ${race.id})")
                         val raceResult = analyzeRace(race, track, jockeyRankings, trainerRankings, includeDetailedForm)
@@ -116,7 +116,7 @@ class RaceAnalysisService(
     }
     
     /**
-     * Analyze a single track
+     * Analyse a single track
      */
     private suspend fun analyzeTrack(
         track: Track,
@@ -174,7 +174,7 @@ class RaceAnalysisService(
     }
     
     /**
-     * Analyze a single race
+     * Analyse a single race
      */
     private suspend fun analyzeRace(
         race: Race,

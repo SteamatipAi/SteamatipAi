@@ -129,17 +129,22 @@ fun TrackSelectionScreen(
                 )
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = "Select Tracks",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFD700) // Gold color
+                    color = Color(0xFFFFD700), // Gold color
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Text(
                     text = "Racing date: $selectedDate",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFFD700) // Gold color
+                    color = Color(0xFFFFD700), // Gold color
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         }
@@ -295,7 +300,7 @@ fun TrackSelectionScreen(
                 border = BorderStroke(2.dp, Color(0xFFFFD700)) // Gold border
             ) {
                 Text(
-                    text = "Analyze ${selectedTracks.size} Track${if (selectedTracks.size != 1) "s" else ""}",
+                    text = "Analyse ${selectedTracks.size} Track${if (selectedTracks.size != 1) "s" else ""}",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFFFFD700), // Gold color
                     fontWeight = FontWeight.Bold

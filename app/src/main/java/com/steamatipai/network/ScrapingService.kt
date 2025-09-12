@@ -192,7 +192,7 @@ class ScrapingService {
      * Debug function to dump HTML structure for analysis
      */
     private fun debugHtmlStructure(doc: Document, track: Track) {
-        println("🔍 DEBUG: Analyzing HTML structure for ${track.name}")
+        println("🔍 DEBUG: Analysing HTML structure for ${track.name}")
         println("🔍 Document title: ${doc.title()}")
         
         // Look for all tables

@@ -176,14 +176,18 @@ fun ResultsScreen(
                 )
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = "Race Analysis Results",
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFD700)
-                    )
-                }
+                    color = Color(0xFFFFD700),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             
             // Share button
             IconButton(
@@ -227,7 +231,7 @@ fun ResultsScreen(
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Analyzing races...",
+                        text = "Analysing races...",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
