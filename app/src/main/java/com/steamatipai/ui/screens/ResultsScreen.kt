@@ -620,7 +620,7 @@ fun shareResults(
                 }
                 appendLine("   Jockey: ${horse.horse.jockey}")
                 appendLine("   Trainer: ${horse.horse.trainer}")
-                appendLine("   Barrier: ${horse.horse.barrier} • Weight: ${horse.horse.weight}kg")
+                    appendLine("   Barrier: ${horse.horse.barrier} • Weight: ${horse.horse.weight}kg")
                 if (horse.isStandout) {
                     appendLine("   ⭐ STANDOUT SELECTION")
                 }

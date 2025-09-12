@@ -838,7 +838,62 @@ class ScrapingService {
             val oddsText = horseElement.select(".odds, .price, [class*='odds'], [class*='price']").firstOrNull()?.text()?.trim()
             val odds = oddsText?.toDoubleOrNull()
             
-            val form = horseElement.select(".form, .form-line, [class*='form']").firstOrNull()?.text()?.trim() ?: ""
+            // DEBUG: Print all available form-related elements to understand the HTML structure
+            println("🔍 DEBUG: Looking for form data in horse element for $name:")
+            val allFormElements = horseElement.select("[class*='form'], [id*='form'], .form-line, .recent-form, .race-form")
+            println("🔍 DEBUG: Found ${allFormElements.size} form-related elements")
+            allFormElements.forEachIndexed { index, element ->
+                println("🔍 DEBUG: Form element $index: class='${element.className()}', id='${element.id()}', text='${element.text().take(50)}...'")
+            }
+            
+            // Also check if form data is in the full text but not in a specific element
+            val fullElementText = horseElement.text()
+            println("🔍 DEBUG: Full element text for $name: ${fullElementText.take(200)}...")
+            
+            // Try multiple approaches to extract form string
+            var form = ""
+            
+            // Approach 1: Look for specific form-related CSS classes
+            val formElement = horseElement.select(".form, .form-line, [class*='form'], [class*='recent'], [class*='race']").firstOrNull()
+            if (formElement != null) {
+                form = formElement.text().trim()
+                println("🔍 DEBUG: Found form via CSS selector: '$form'")
+            }
+            
+            // Approach 2: If no form found via CSS, try to extract from full text using regex
+            if (form.isEmpty()) {
+                // Look for patterns like "32x1x2212x" (numbers and x's)
+                val formPattern = Regex("([0-9x]+)")
+                val formMatches = formPattern.findAll(fullElementText).toList()
+                
+                // Find the longest match that contains both numbers and x's
+                val potentialForms = formMatches.map { it.value }.filter { formStr ->
+                    formStr.contains("x") && formStr.contains(Regex("[0-9]")) && formStr.length >= 3
+                }
+                
+                if (potentialForms.isNotEmpty()) {
+                    // Take the longest form string that looks valid
+                    form = potentialForms.maxByOrNull { it.length } ?: ""
+                    println("🔍 DEBUG: Found form via regex pattern: '$form'")
+                }
+            }
+            
+            // Approach 3: Look for form data in table cells or specific positions
+            if (form.isEmpty()) {
+                val cells = horseElement.select("td, span, div")
+                for (cell in cells) {
+                    val cellText = cell.text().trim()
+                    // Look for strings that contain both numbers and x's
+                    if (cellText.contains("x") && cellText.contains(Regex("[0-9]")) && 
+                        cellText.length >= 3 && cellText.length <= 20) {
+                        form = cellText
+                        println("🔍 DEBUG: Found form in cell: '$form'")
+                        break
+                    }
+                }
+            }
+            
+            println("🔍 DEBUG: Final extracted form string for $name: '$form'")
             
             // Extract horse code from Racing Australia link
             val (horseCode, raceEntry) = extractHorseCodeAndRaceEntry(horseElement)
@@ -1603,27 +1658,69 @@ class ScrapingService {
      */
     private fun parseUpResults(doc: Document): UpResult {
         try {
-            // Look for up results section
-            val upResultsElement = doc.select(".up-results, .spell-stats, [class*='up']").firstOrNull()
+            // Get all text from the document to search for 1st Up and 2nd Up patterns
+            val allText = doc.text()
             
-            if (upResultsElement != null) {
-                val winsText = upResultsElement.select(".wins, .first-up").firstOrNull()?.text()?.trim()
-                val wins = winsText?.toIntOrNull() ?: 0
-                
-                val placesText = upResultsElement.select(".places, .second-up, .third-up").firstOrNull()?.text()?.trim()
-                val places = placesText?.toIntOrNull() ?: 0
-                
-                val runsText = upResultsElement.select(".runs, .total-up").firstOrNull()?.text()?.trim()
-                val runs = runsText?.toIntOrNull() ?: 0
-                
-                return UpResult(wins, places, runs)
-            }
+            // Parse 1st Up statistics (e.g., "1st Up: 3:1-0-0")
+            val firstUpStats = parseSpellPerformance(allText, "1st Up")
+            
+            // Parse 2nd Up statistics (e.g., "2nd Up: 2:2-0-0")
+            val secondUpStats = parseSpellPerformance(allText, "2nd Up")
+            
+            // For backward compatibility, calculate total wins, places, runs
+            val totalWins = (firstUpStats?.wins ?: 0) + (secondUpStats?.wins ?: 0)
+            val totalPlaces = (firstUpStats?.seconds ?: 0) + (firstUpStats?.thirds ?: 0) + 
+                             (secondUpStats?.seconds ?: 0) + (secondUpStats?.thirds ?: 0)
+            val totalRuns = (firstUpStats?.runs ?: 0) + (secondUpStats?.runs ?: 0)
+            
+            println("🏇 Parsed Up Results:")
+            println("   1st Up: ${firstUpStats?.runs ?: 0} runs, ${firstUpStats?.wins ?: 0} wins, ${firstUpStats?.seconds ?: 0} seconds, ${firstUpStats?.thirds ?: 0} thirds")
+            println("   2nd Up: ${secondUpStats?.runs ?: 0} runs, ${secondUpStats?.wins ?: 0} wins, ${secondUpStats?.seconds ?: 0} seconds, ${secondUpStats?.thirds ?: 0} thirds")
+            
+            return UpResult(
+                wins = totalWins,
+                places = totalPlaces,
+                runs = totalRuns,
+                firstUpStats = firstUpStats,
+                secondUpStats = secondUpStats
+            )
         } catch (e: Exception) {
             println("❌ Error parsing up results: ${e.message}")
         }
         
         // Default values if parsing fails
-        return UpResult(0, 0, 0)
+        return UpResult(0, 0, 0, null, null)
+    }
+    
+    /**
+     * Parse spell performance statistics from text (e.g., "1st Up: 3:1-0-0")
+     */
+    private fun parseSpellPerformance(text: String, label: String): SpellPerformance? {
+        try {
+            // Look for patterns like "1st Up: 3:1-0-0" or "2nd Up: 2:2-0-0"
+            val pattern = Regex("$label:\\s*(\\d+):(\\d+)-(\\d+)-(\\d+)")
+            val match = pattern.find(text)
+            
+            if (match != null) {
+                val runs = match.groupValues[1].toInt()
+                val wins = match.groupValues[2].toInt()
+                val seconds = match.groupValues[3].toInt()
+                val thirds = match.groupValues[4].toInt()
+                
+                println("🏇 Found $label stats: $runs runs, $wins wins, $seconds seconds, $thirds thirds")
+                
+                return SpellPerformance(
+                    runs = runs,
+                    wins = wins,
+                    seconds = seconds,
+                    thirds = thirds
+                )
+            }
+        } catch (e: Exception) {
+            println("❌ Error parsing $label performance: ${e.message}")
+        }
+        
+        return null
     }
     
     /**

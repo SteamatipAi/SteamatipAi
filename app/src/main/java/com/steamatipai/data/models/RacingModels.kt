@@ -43,15 +43,17 @@ data class ScoredHorse(
 // Detailed scoring breakdown
 data class ScoreBreakdown(
     val type: ScoringType? = null,
-    val recentForm: Double = 0.0,
-    val classSuitability: Double = 0.0,
-    val trackDistance: Double = 0.0,
-    val sectionalTime: Double = 0.0,
-    val barrier: Double = 0.0,
-    val jockey: Double = 0.0,
-    val trainer: Double = 0.0,
-    val combination: Double = 0.0,  // Combined jockey-horse + jockey-trainer
-    val trackCondition: Double = 0.0,  // NEW LAW 9
+    val recentForm: Double = 0.0,        // Law 1 for normal horses
+    val firstUp: Double = 0.0,           // Law 1 for spell horses
+    val secondUp: Double = 0.0,          // Law 2 for spell horses
+    val classSuitability: Double = 0.0,  // Law 3 (was Law 2)
+    val trackDistance: Double = 0.0,     // Law 4 (was Law 3)
+    val sectionalTime: Double = 0.0,     // Law 5 (was Law 4)
+    val barrier: Double = 0.0,           // Law 6 (was Law 5)
+    val jockey: Double = 0.0,            // Law 7 (was Law 6)
+    val trainer: Double = 0.0,           // Law 8 (was Law 7)
+    val combination: Double = 0.0,       // Law 9 (was Law 8)
+    val trackCondition: Double = 0.0,    // Law 10 (was Law 9)
     val totalScore: Double = 0.0
 )
 
@@ -169,7 +171,17 @@ data class RaceResultDetail(
 data class UpResult(
     val wins: Int,
     val places: Int,
-    val runs: Int
+    val runs: Int,
+    val firstUpStats: SpellPerformance? = null,  // 1st Up performance (e.g., "3:1-0-0")
+    val secondUpStats: SpellPerformance? = null  // 2nd Up performance (e.g., "2:2-0-0")
+)
+
+// Spell performance statistics
+data class SpellPerformance(
+    val runs: Int,    // Total starts after spell
+    val wins: Int,    // Wins after spell
+    val seconds: Int, // 2nd places after spell
+    val thirds: Int   // 3rd places after spell
 )
 
 // Track/Distance performance statistics

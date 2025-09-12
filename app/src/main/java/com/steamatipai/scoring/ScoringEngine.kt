@@ -8,8 +8,10 @@ import kotlin.math.min
 class ScoringEngine {
     
     companion object {
-        const val TOTAL_POINTS = 116.0  // Updated for 9 laws
+        const val TOTAL_POINTS = 116.0  // Updated for 10 laws (spell horses)
         const val RECENT_FORM_WEIGHT = 25.0
+        const val FIRST_UP_WEIGHT = 8.0  // NEW LAW 1 for spell horses
+        const val SECOND_UP_WEIGHT = 8.0 // NEW LAW 2 for spell horses
         const val CLASS_SUITABILITY_WEIGHT = 25.0
         const val TRACK_DISTANCE_WEIGHT = 20.0
         const val SECTIONAL_TIME_WEIGHT = 8.0
@@ -17,7 +19,7 @@ class ScoringEngine {
         const val JOCKEY_WEIGHT = 8.0
         const val TRAINER_WEIGHT = 8.0
         const val COMBINATION_WEIGHT = 8.0
-        const val TRACK_CONDITION_WEIGHT = 8.0  // NEW LAW 9
+        const val TRACK_CONDITION_WEIGHT = 8.0
         
         const val SPELL_THRESHOLD_WEEKS = 12
     }
@@ -62,21 +64,22 @@ class ScoringEngine {
             return null
         }
         
-        // Check if horse is returning from spell or first-up
-        val isReturningFromSpell = isReturningFromSpell(horse, horseForm, race.date)
+        // Check if horse is returning from spell based on form string
+        val currentSpellStatus = getCurrentSpellStatus(horse)
+        val isReturningFromSpell = currentSpellStatus == "1ST_UP" || currentSpellStatus == "2ND_UP"
         val isFirstUp = isFirstUpHorse(horseForm)
         
         when {
             isReturningFromSpell -> {
                 println("🏆 ${horse.name} - USING SPELL HORSE SCORING (returning from spell)")
-                val score = calculateSpellHorseScore(horse, race, horseForm, jockeyRankings, trainerRankings)
+                println("🏆 ${horse.name} - Current spell status: $currentSpellStatus")
                 
-                // Calculate individual law scores for display
-                // Spell horses: 0 for recent form, but normal calculation for history-based laws
-                val recentForm = 0.0 // Spell horses get 0 for recent form
+                // Calculate individual law scores based on current spell status
+                val firstUp = if (currentSpellStatus == "1ST_UP") calculateFirstUpScore(horseForm) else 0.0
+                val secondUp = if (currentSpellStatus == "2ND_UP") calculateSecondUpScore(horseForm) else 0.0
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm) // Use historical class performance
                 val trackDistance = calculateTrackDistanceScore(horse, race, horseForm) // Use historical track/distance performance
-                val sectionalTime = 0.0 // Spell horses get 0 for sectional time (no recent form to analyze)
+                val sectionalTime = if (currentSpellStatus == "2ND_UP") calculateSectionalTimeScore(horseForm) else 0.0 // Only 2nd Up horses get sectional time
                 val barrier = calculateBarrierScore(horse)
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
@@ -85,9 +88,30 @@ class ScoringEngine {
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm) // Use historical track condition performance
                 
+                // Calculate total score
+                val score = firstUp + secondUp + classSuitability + trackDistance + 
+                    sectionalTime + barrier + jockey + trainer + combination + trackCondition
+                
+                // COMPREHENSIVE SPELL HORSE SCORING LOGGING
+                println("🏆 ${horse.name} SPELL HORSE SCORING BREAKDOWN (Status: $currentSpellStatus):")
+                println("   🎯 Law 1 - 1st Up Performance: ${String.format("%.1f", firstUp)} points ${if (currentSpellStatus == "1ST_UP") "(ACTIVE)" else "(inactive)"}")
+                println("   🎯 Law 2 - 2nd Up Performance: ${String.format("%.1f", secondUp)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
+                println("   🎯 Law 3 - Class Suitability: ${String.format("%.1f", classSuitability)} points")
+                println("   🏁 Law 4 - Track/Distance History: ${String.format("%.1f", trackDistance)} points")
+                println("   ⚡ Law 5 - Sectional Time: ${String.format("%.1f", sectionalTime)} points ${if (currentSpellStatus == "2ND_UP") "(from 1st Up race)" else "(no recent data)"}")
+                println("   🚪 Law 6 - Barrier: ${String.format("%.1f", barrier)} points")
+                println("   🏇 Law 7 - Jockey: ${String.format("%.1f", jockey)} points")
+                println("   👨‍🏫 Law 8 - Trainer: ${String.format("%.1f", trainer)} points")
+                println("   🤝 Law 9 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
+                println("   🌦️ Law 10 - Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   💯 TOTAL SCORE: ${String.format("%.1f", score)} points")
+                println("   ─".repeat(50))
+                
                 val scoreBreakdown = ScoreBreakdown(
                     type = ScoringType.RETURNING_FROM_SPELL,
-                    recentForm = recentForm,
+                    recentForm = 0.0, // Not used for spell horses
+                    firstUp = firstUp,
+                    secondUp = secondUp,
                     classSuitability = classSuitability,
                     trackDistance = trackDistance,
                     sectionalTime = sectionalTime,
@@ -196,7 +220,7 @@ class ScoringEngine {
     }
     
     /**
-     * Law 1: Recent Form (25 points)
+     * Law 1: Recent Form for Normal Horses (25 points)
      * Considers last 5 races for wins, places, and last start margin bonus
      */
     private fun calculateRecentFormScore(horseForm: HorseForm): Double {
@@ -265,7 +289,113 @@ class ScoringEngine {
     }
     
     /**
-     * Law 2: Class Suitability (25 points)
+     * Determine if horse is currently 1st up or 2nd up from current spell
+     * Parses the form string to check recent entries (reading right-to-left)
+     */
+    private fun getCurrentSpellStatus(horse: Horse): String {
+        val form = horse.form.trim()
+        println("🔍 Analyzing form string: '$form' for ${horse.name}")
+        
+        if (form.isEmpty()) {
+            println("🔍 No form data available")
+            return "UNKNOWN"
+        }
+        
+        // Read form string right-to-left (most recent first)
+        // Example: "32x1x2212x" -> read as: x, 2, 1, 2, x, 1, x, 2, 3
+        
+        val reversedForm = form.reversed()
+        println("🔍 Reversed form string: '$reversedForm'")
+        
+        // Check first character (most recent race)
+        val firstChar = reversedForm.firstOrNull()
+        
+        when {
+            firstChar == 'x' || firstChar == 'X' -> {
+                println("🔍 Most recent race is 'X' - horse is 1st Up from spell")
+                return "1ST_UP"
+            }
+            firstChar != null && firstChar.isDigit() -> {
+                // Most recent is a number, check if second character is X (spell)
+                if (reversedForm.length >= 2 && (reversedForm[1] == 'x' || reversedForm[1] == 'X')) {
+                    println("🔍 Pattern: ${firstChar}X - horse is 2nd Up from spell")
+                    return "2ND_UP"
+                } else {
+                    println("🔍 Most recent race is number but no spell pattern - normal horse")
+                    return "NORMAL"
+                }
+            }
+            else -> {
+                println("🔍 Unknown form pattern: $firstChar")
+                return "UNKNOWN"
+            }
+        }
+    }
+    
+    /**
+     * Law 1: 1st Up Performance for Spell Horses (up to 8 points)
+     * Simplified scoring: 5 points if ever won 1st Up, 3 points if ever placed 1st Up
+     */
+    private fun calculateFirstUpScore(horseForm: HorseForm): Double {
+        println("🔍 Law 1: Starting 1st Up performance calculation (simplified)")
+        
+        val upResults = horseForm.upResults
+        var score = 0.0
+        
+        upResults.firstUpStats?.let { firstUp ->
+            println("🏇 Law 1: 1st Up stats - ${firstUp.runs} runs, ${firstUp.wins} wins, ${firstUp.seconds} seconds, ${firstUp.thirds} thirds")
+            
+            // Simplified scoring system
+            if (firstUp.wins > 0) {
+                score += 5.0 // 5 points if has ever won 1st Up (regardless of how many wins)
+                println("🏇 Law 1: +5.0 points for having won 1st Up")
+            }
+            if (firstUp.seconds > 0 || firstUp.thirds > 0) {
+                score += 3.0 // 3 points if has ever placed 1st Up (2nd or 3rd, regardless of how many)
+                println("🏇 Law 1: +3.0 points for having placed 1st Up")
+            }
+        }
+        
+        val finalScore = min(score, FIRST_UP_WEIGHT)
+        println("🏇 Law 1: 1st Up performance score: ${String.format("%.1f", finalScore)} (simplified system, max ${FIRST_UP_WEIGHT})")
+        return finalScore
+    }
+    
+    /**
+     * Law 2: 2nd Up Performance for Spell Horses (up to 8 points)
+     * Uses historical 2nd Up performance when returning from previous spells
+     */
+    private fun calculateSecondUpScore(horseForm: HorseForm): Double {
+        println("🔍 Law 2: Starting 2nd Up performance calculation")
+        
+        val upResults = horseForm.upResults
+        var score = 0.0
+        
+        upResults.secondUpStats?.let { secondUp ->
+            println("🏇 Law 2: 2nd Up stats - ${secondUp.runs} runs, ${secondUp.wins} wins, ${secondUp.seconds} seconds, ${secondUp.thirds} thirds")
+            
+            // Award points based on 2nd Up performance
+            if (secondUp.wins > 0) {
+                score += 5.0 // 5 points for winning in second starts after spells
+                println("🏇 Law 2: +5.0 points for 2nd Up wins")
+            }
+            if (secondUp.seconds > 0) {
+                score += 3.0 // 3 points for 2nd places in second starts after spells
+                println("🏇 Law 2: +3.0 points for 2nd Up seconds")
+            }
+            if (secondUp.thirds > 0) {
+                score += 1.0 // 1 point for 3rd places in second starts after spells
+                println("🏇 Law 2: +1.0 points for 2nd Up thirds")
+            }
+        }
+        
+        val finalScore = min(score, SECOND_UP_WEIGHT)
+        println("🏇 Law 2: 2nd Up performance score: ${String.format("%.1f", finalScore)} (capped at ${SECOND_UP_WEIGHT})")
+        return finalScore
+    }
+    
+    /**
+     * Law 3: Class Suitability (25 points)
      * Compares current race class to horse's past races
      */
     private fun calculateClassSuitabilityScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
@@ -311,14 +441,14 @@ class ScoringEngine {
     }
     
     /**
-     * Law 3: Track/Distance Suitability (20 points)
+     * Law 4: Track/Distance Suitability (20 points)
      * Separate scoring for track performance, distance performance, and combination bonus
      */
     private fun calculateTrackDistanceScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
         val trackDistanceStats = horseForm.trackDistanceStats
         
         if (trackDistanceStats == null) {
-            println("🏇 Law 3: No track/distance statistics available for ${horse.name}")
+            println("🏇 Law 4: No track/distance statistics available for ${horse.name}")
             return 0.0
         }
         
@@ -346,7 +476,7 @@ class ScoringEngine {
      */
     private fun calculatePerformanceScore(stats: PerformanceStats, type: String): Double {
         if (stats.runs == 0) {
-            println("🏇 Law 3: No $type history available")
+            println("🏇 Law 4: No $type history available")
             return 0.0
         }
         
@@ -397,7 +527,7 @@ class ScoringEngine {
     }
     
     /**
-     * Law 4: Finishing Speed Bonus (8 points)
+     * Law 5: Finishing Speed Bonus (8 points)
      * Rewards horses with the fastest last 600m times from their last start
      */
     private fun calculateSectionalTimeScore(horseForm: HorseForm): Double {
@@ -432,7 +562,7 @@ class ScoringEngine {
     }
     
     /**
-     * Law 5: Barrier (6 points)
+     * Law 6: Barrier (6 points)
      * Points for barriers 1-8
      */
     private fun calculateBarrierScore(horse: Horse): Double {
@@ -440,7 +570,7 @@ class ScoringEngine {
     }
     
     /**
-     * Law 6: Jockey (8 points)
+     * Law 7: Jockey (8 points)
      * Points based on jockey's premiership ranking
      */
     private fun calculateJockeyScore(horse: Horse, jockeyRankings: List<JockeyPremiership>): Double {
@@ -460,7 +590,7 @@ class ScoringEngine {
     }
     
     /**
-     * Law 7: Trainer (8 points)
+     * Law 8: Trainer (8 points)
      * Points based on trainer's premiership ranking
      */
     private fun calculateTrainerScore(horse: Horse, trainerRankings: List<TrainerPremiership>): Double {
@@ -893,7 +1023,7 @@ class ScoringEngine {
     // Removed jockey-trainer partnership scoring - focusing only on jockey-horse relationship
     
     /**
-     * Law 9: Track Condition Suitability (8 points)
+     * Law 10: Track Condition Suitability (8 points)
      * Assesses horse's success on similar track conditions
      */
     private fun calculateTrackConditionScore(horse: Horse, race: Race, horseForm: HorseForm): Double {

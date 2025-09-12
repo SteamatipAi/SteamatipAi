@@ -153,81 +153,100 @@ fun HorseScoringDetailScreen(
                 color = Color(0xFFFFD700)
             )
             
-            // Law 1 - Recent Form
+            // Always show 1st Up and 2nd Up laws first, then all other laws
+            // Law 1: 1st Up Performance
             ScoringLawCard(
                 lawNumber = 1,
+                lawName = "1st Up Performance",
+                score = scoredHorse.scoreBreakdown.firstUp,
+                maxScore = 8.0,
+                description = "Historical 1st Up performance after a spell (active if horse is currently 1st Up)"
+            )
+            
+            // Law 2: 2nd Up Performance
+            ScoringLawCard(
+                lawNumber = 2,
+                lawName = "2nd Up Performance",
+                score = scoredHorse.scoreBreakdown.secondUp,
+                maxScore = 8.0,
+                description = "Historical 2nd Up performance after a spell (active if horse is currently 2nd Up)"
+            )
+            
+            // Law 3: Recent Form
+            ScoringLawCard(
+                lawNumber = 3,
                 lawName = "Recent Form",
                 score = scoredHorse.scoreBreakdown.recentForm,
                 maxScore = 25.0,
-                description = "Performance in last 5 races with recency weighting"
+                description = "Performance in last 5 races with recency weighting (not used for spell horses)"
             )
             
-            // Law 2 - Class Suitability
+            // Law 4: Class Suitability
             ScoringLawCard(
-                lawNumber = 2,
+                lawNumber = 4,
                 lawName = "Class Suitability",
                 score = scoredHorse.scoreBreakdown.classSuitability,
                 maxScore = 25.0,
                 description = "How well the horse fits the race class"
             )
             
-            // Law 3 - Track/Distance History
+            // Law 5: Track/Distance History
             ScoringLawCard(
-                lawNumber = 3,
+                lawNumber = 5,
                 lawName = "Track/Distance History",
                 score = scoredHorse.scoreBreakdown.trackDistance,
                 maxScore = 20.0,
                 description = "Past performance at this track and distance"
             )
             
-            // Law 4 - Sectional Time
+            // Law 6: Sectional Time
             ScoringLawCard(
-                lawNumber = 4,
+                lawNumber = 6,
                 lawName = "Sectional Time",
                 score = scoredHorse.scoreBreakdown.sectionalTime,
                 maxScore = 8.0,
-                description = "Speed in final 600m of recent races"
+                description = "Speed in final 600m of recent races (only for normal/2nd up horses)"
             )
             
-            // Law 5 - Barrier
+            // Law 7: Barrier
             ScoringLawCard(
-                lawNumber = 5,
+                lawNumber = 7,
                 lawName = "Barrier",
                 score = scoredHorse.scoreBreakdown.barrier,
                 maxScore = 6.0,
                 description = "Starting position advantage"
             )
             
-            // Law 6 - Jockey
+            // Law 8: Jockey
             ScoringLawCard(
-                lawNumber = 6,
+                lawNumber = 8,
                 lawName = "Jockey",
                 score = scoredHorse.scoreBreakdown.jockey,
                 maxScore = 8.0,
                 description = "Jockey's current form and premiership ranking"
             )
             
-            // Law 7 - Trainer
+            // Law 9: Trainer
             ScoringLawCard(
-                lawNumber = 7,
+                lawNumber = 9,
                 lawName = "Trainer",
                 score = scoredHorse.scoreBreakdown.trainer,
                 maxScore = 8.0,
                 description = "Trainer's current form and premiership ranking"
             )
             
-            // Law 8 - Combination
+            // Law 10: Jockey-Horse Relationship
             ScoringLawCard(
-                lawNumber = 8,
+                lawNumber = 10,
                 lawName = "Jockey-Horse Relationship",
                 score = scoredHorse.scoreBreakdown.combination,
                 maxScore = 8.0,
                 description = "Historical success of jockey with this horse"
             )
             
-            // Law 9 - Track Condition
+            // Law 11: Track Condition
             ScoringLawCard(
-                lawNumber = 9,
+                lawNumber = 11,
                 lawName = "Track Condition",
                 score = scoredHorse.scoreBreakdown.trackCondition,
                 maxScore = 8.0,
