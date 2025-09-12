@@ -54,14 +54,17 @@ fun ResultsScreen(
     var processingTime by remember { mutableStateOf(0L) }
     var selectedHorse by remember { mutableStateOf<ScoredHorse?>(null) }
     var selectedRaceIndex by remember { mutableStateOf(0) }
+    var analysisCompleted by remember { mutableStateOf(false) } // Track if analysis is done
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     val raceAnalysisService = remember { RaceAnalysisService() }
     val context = LocalContext.current
 
-    // Perform real analysis when the screen loads
+    // Perform real analysis when the screen loads (only once)
     LaunchedEffect(selectedTracks) {
+        // Only run analysis if it hasn't been completed yet
+        if (!analysisCompleted) {
         try {
             isLoading = true
             error = null
@@ -115,17 +118,21 @@ fun ResultsScreen(
             if (analysisResult.error == null) {
                 results = analysisResult.results
                 processingTime = analysisResult.processingTime
+                analysisCompleted = true // Mark analysis as completed successfully
             } else {
                 error = analysisResult.error ?: "Analysis failed"
                 results = emptyList()
                 processingTime = 0
+                analysisCompleted = true // Mark as completed even if failed to prevent re-running
             }
         } catch (e: Exception) {
             error = "Failed to analyze races: ${e.message}"
             results = emptyList()
             processingTime = 0
+            analysisCompleted = true // Mark as completed even if failed to prevent re-running
         } finally {
             isLoading = false
+        }
         }
     }
 
