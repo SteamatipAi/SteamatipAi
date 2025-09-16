@@ -1098,14 +1098,14 @@ class ScoringEngine {
         }
         
         if (betType != null) {
-            val confidence = when (betType) {
-                BetType.SUPER_BET -> "Highest confidence - significant advantage"
-                BetType.BEST_BET -> "High confidence - clear advantage"
-                BetType.GOOD_BET -> "Moderate confidence - some advantage"
+        val confidence = when (betType) {
+            BetType.SUPER_BET -> "Highest confidence - significant advantage"
+            BetType.BEST_BET -> "High confidence - clear advantage"
+            BetType.GOOD_BET -> "Moderate confidence - some advantage"
                 else -> "Lower confidence - minimal advantage"
-            }
-            
-            recommendations.add(BettingRecommendation(betType, pointGap, confidence))
+        }
+        
+        recommendations.add(BettingRecommendation(betType, pointGap, confidence))
         }
         
         // All other horses get no recommendation (null betType = standard gold border)
