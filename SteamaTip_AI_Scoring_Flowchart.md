@@ -229,12 +229,14 @@
                         │                           │
                         ▼                           ▼
             ┌─────────────────────┐    ┌─────────────────────┐
-            │   SHARE AS TEXT     │    │   EXPORT TO EXCEL   │
+            │   SHARE AS TEXT     │    │PROFESSIONAL EXCEL   │
             │                     │    │                     │
-            │ • Formatted message │    │ • CSV format        │
-            │ • All tracks        │    │ • Structured data   │
-            │ • All best bets     │    │ • Opens in Excel    │
-            │ • Outlook/Messages  │    │ • Email attachment  │
+            │ • Formatted message │    │ • Real .xlsx format │
+            │ • All tracks        │    │ • Auto-color coding │
+            │ • All best bets     │    │ • Auto-width columns│
+            │ • Outlook/Messages  │    │ • Center alignment  │
+            │                     │    │ • Filtering enabled │
+            │                     │    │ • Professional style│
             └─────────────────────┘    └─────────────────────┘
 ```
 
@@ -244,9 +246,22 @@
 - **Good Bet (Purple)**: Point gap 3.0-4.9 points above second place
 - **Consider**: Point gap < 3.0 points (excluded from Best Bets)
 
-### 6. Export Functionality
+### 6. Professional Excel Export (BREAKTHROUGH IMPLEMENTATION)
+**Technology**: Aspose.Cells for Android via Java (v25.6)
+**Output**: Real .xlsx files with complete professional formatting
+
+**Automatic Formatting Applied:**
+- **Track Names**: Color-coded backgrounds (orange, yellow, turquoise, pink, gray, lavender)
+- **Bet Types**: Color-coded backgrounds (Green=Super Bet, Blue=Best Bet, Purple=Good Bet)
+- **Column Alignment**: Auto-centered (Race #, Time, Distance, Horse #, Score, Barrier, Weight)
+- **Column Sizing**: Auto-width (Track, Race Name, Horse Name, Jockey, Trainer)
+- **Text Features**: Auto-wrapping for long race names
+- **Data Features**: Auto-filtering enabled on all columns
+- **Professional Styling**: Borders, fonts, and complete professional appearance
+
+**Export Options:**
 - **Text Format**: Formatted for easy reading in email/messages
-- **Excel Format**: CSV file with columns for Track, Race, Horse, Score, Bet Type, etc.
+- **Professional Excel**: Real .xlsx with all formatting automatically applied
 - **Multi-Track Support**: Single export covers all selected tracks
 - **Real-Time Data**: All exports use live analysis results
 

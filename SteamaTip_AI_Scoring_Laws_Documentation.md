@@ -323,9 +323,15 @@ Only horses meeting these betting recommendation levels are included:
 
 ### Export Functionality
 - **Text Format**: Clean, formatted message suitable for email/messaging
-- **Excel Format**: CSV file with structured data (Track, Race, Horse, Score, Bet Type, etc.)
-- **Multi-Track Support**: Single export covers all selected tracks
-- **Professional Layout**: Organized by track with clear betting indicators
+- **Professional Excel Export**: Real .xlsx files with complete formatting using Aspose.Cells for Android:
+  - **Automatic color coding**: Track names (orange, yellow, turquoise, pink, gray, lavender) and bet types (Green=Super Bet, Blue=Best Bet, Purple=Good Bet)
+  - **Auto-sized columns**: Track names, race names, horse names, jockey/trainer names automatically sized
+  - **Center alignment**: Race numbers, time, distance, horse numbers, scores, barriers, weights perfectly centered
+  - **Text wrapping**: Race names wrap automatically for long titles
+  - **Auto-filtering**: All data rows include filtering for advanced analysis
+  - **Professional styling**: Complete borders, fonts, and professional appearance
+- **Multi-Track Support**: Single export covers all selected tracks with organized layout
+- **Data Integrity**: All scores, recommendations, and details accurately preserved
 
 ### Data Integrity
 The Best Bets feature maintains the same strict data integrity standards:
@@ -344,6 +350,6 @@ The system's reliance on real data and transparent calculations ensures that use
 
 ---
 
-*Document Version: 2.0*  
+*Document Version: 2.1*  
 *Last Updated: September 2025*  
-*SteamaTip AI - Professional Horse Racing Analysis with Best Bets Feature*
+*SteamaTip AI - Professional Horse Racing Analysis with Best Bets Feature and Professional Excel Export*
