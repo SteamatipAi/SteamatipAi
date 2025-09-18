@@ -108,21 +108,38 @@ fun RaceSelectionScreen(
         }
     }
 
-    // Main UI
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1a1a2e),
-                        Color(0xFF16213e),
-                        Color(0xFF0f3460)
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Backdrop Image
+        Image(
+            painter = painterResource(id = R.drawable.app_backdrop),
+            contentDescription = "Racing backdrop",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        // Dark overlay for better text readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.7f)
+                        )
                     )
                 )
-            )
-            .padding(16.dp)
-    ) {
+        )
+        
+        // Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
         // Header
         Row(
             modifier = Modifier
@@ -280,6 +297,7 @@ fun RaceSelectionScreen(
                     }
                 }
             }
+        }
         }
     }
 }

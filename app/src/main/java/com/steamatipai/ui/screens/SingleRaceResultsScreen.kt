@@ -19,10 +19,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import android.content.Intent
+import androidx.compose.foundation.Image
 import com.steamatipai.data.models.ScoredHorse
 import com.steamatipai.data.models.RaceResult
 import com.steamatipai.data.models.BetType
+import com.steamatipai.R
 
 @Composable
 fun SingleRaceResultsScreen(
@@ -42,21 +46,38 @@ fun SingleRaceResultsScreen(
         return
     }
 
-    // Main UI
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1a1a2e),
-                        Color(0xFF16213e),
-                        Color(0xFF0f3460)
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Backdrop Image
+        Image(
+            painter = painterResource(id = R.drawable.app_backdrop),
+            contentDescription = "Racing backdrop",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        // Dark overlay for better text readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.7f)
+                        )
                     )
                 )
-            )
-            .padding(16.dp)
-    ) {
+        )
+        
+        // Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
         // Header
         Row(
             modifier = Modifier
@@ -145,8 +166,9 @@ fun SingleRaceResultsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // All Horses List
+        val horsesToShow = if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses else raceResult.topSelections
         Text(
-            text = "All Horses (${raceResult.topSelections.size} runners):",
+            text = "All Horses (${horsesToShow.size} runners):",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = Color(0xFFFFD700),
@@ -156,7 +178,7 @@ fun SingleRaceResultsScreen(
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(raceResult.topSelections) { index, horse ->
+            itemsIndexed(horsesToShow) { index, horse ->
                 // Only the TOP horse (index 0) gets special colors if it qualifies
                 val horseBetType = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
                     val topRecommendation = raceResult.bettingRecommendations[0]
@@ -180,6 +202,7 @@ fun SingleRaceResultsScreen(
                     betType = horseBetType
                 )
             }
+        }
         }
     }
 }
