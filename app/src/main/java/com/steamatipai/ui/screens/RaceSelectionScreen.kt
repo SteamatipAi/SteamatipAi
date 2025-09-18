@@ -21,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import com.steamatipai.R
 import com.steamatipai.data.models.RaceResult
 import com.steamatipai.service.RaceAnalysisService
@@ -43,6 +46,7 @@ fun RaceSelectionScreen(
     var selectedRace by remember { mutableStateOf<RaceResult?>(null) }
 
     val raceAnalysisService = remember { RaceAnalysisService() }
+    val context = LocalContext.current
 
     // Show single race results if a race is selected
     if (selectedRace != null) {
@@ -174,8 +178,18 @@ fun RaceSelectionScreen(
                 )
             }
 
-            // Spacer to balance the back button
-            Spacer(modifier = Modifier.width(48.dp))
+            // Share button
+            IconButton(
+                onClick = {
+                    shareAllRaceResults(context, raceResults, selectedDate)
+                }
+            ) {
+                Icon(
+                    Icons.Filled.Share,
+                    contentDescription = "Share All Results",
+                    tint = Color(0xFFFFD700)
+                )
+            }
         }
 
         if (isLoading) {
@@ -268,7 +282,8 @@ fun RaceSelectionScreen(
         } else {
             // Race List
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 80.dp) // Add bottom padding for system UI
             ) {
                 // Group races by track and sort by race number
                 val racesByTrack = raceResults.groupBy { it.race.venue }
@@ -276,13 +291,25 @@ fun RaceSelectionScreen(
                 racesByTrack.forEach { (trackName, races) ->
                     item {
                         // Track header
-                        Text(
-                            text = trackName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFD700),
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.Black.copy(alpha = 0.8f)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.7f))
+                        ) {
+                            Text(
+                                text = trackName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFD700),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                     
                     items(races.sortedBy { it.race.raceNumber }) { raceResult ->
@@ -311,11 +338,11 @@ fun RaceSelectionCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Black.copy(alpha = 0.8f)
+            containerColor = Color.Black
         ),
-        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f))
+        border = BorderStroke(2.dp, Color(0xFFFFD700))
     ) {
         Row(
             modifier = Modifier
@@ -326,21 +353,16 @@ fun RaceSelectionCard(
             // Race Number Circle
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(32.dp)
                     .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFFFD700),
-                                Color(0xFFFFA500)
-                            )
-                        ),
-                        shape = RoundedCornerShape(24.dp)
+                        color = Color(0xFFFFD700), // Solid gold background
+                        shape = RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "${raceResult.race.raceNumber}",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
@@ -365,8 +387,9 @@ fun RaceSelectionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.8f)
                 )
+                val actualHorseCount = if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses.size else raceResult.topSelections.size
                 Text(
-                    text = "${raceResult.topSelections.size} horses",
+                    text = "$actualHorseCount horses",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFFFD700).copy(alpha = 0.8f)
                 )
@@ -381,4 +404,89 @@ fun RaceSelectionCard(
             )
         }
     }
+}
+
+fun shareAllRaceResults(
+    context: android.content.Context,
+    raceResults: List<RaceResult>,
+    selectedDate: String
+) {
+    if (raceResults.isEmpty()) {
+        return
+    }
+    
+    val shareText = buildString {
+        appendLine("🏇 STEAMA TIP AI - COMPLETE RACE ANALYSIS")
+        appendLine("═══════════════════════════════════════════")
+        appendLine("📅 Date: $selectedDate")
+        appendLine("🏁 Total Races: ${raceResults.size}")
+        appendLine()
+        
+        // Group by track
+        val racesByTrack = raceResults.groupBy { it.race.venue }
+        
+        racesByTrack.forEach { (trackName, races) ->
+            appendLine("🏟️ $trackName".uppercase())
+            appendLine("▔".repeat(50))
+            appendLine()
+            
+            races.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+                appendLine("🏇 RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
+                appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m • 🏁 ${raceResult.race.surface}")
+                appendLine("🌤️ Track: ${raceResult.race.trackCondition}")
+                
+                // Show ALL horses, not just top 5
+                val allHorses = if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses else raceResult.topSelections
+                appendLine("🐎 COMPLETE FIELD (${allHorses.size} runners):")
+                appendLine()
+                
+                allHorses.forEachIndexed { index, horse ->
+                    val position = index + 1
+                    
+                    // Add betting indicator for top horse if applicable
+                    val bettingIndicator = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                        val topRecommendation = raceResult.bettingRecommendations[0]
+                        when (topRecommendation.betType) {
+                            com.steamatipai.data.models.BetType.SUPER_BET -> " ⭐ SUPER BET ⭐"
+                            com.steamatipai.data.models.BetType.BEST_BET -> " 🔵 BEST BET"
+                            com.steamatipai.data.models.BetType.GOOD_BET -> " 🟣 GOOD BET"
+                            else -> ""
+                        }
+                    } else ""
+                    
+                    appendLine("${position}. #${horse.horse.number} ${horse.horse.name}$bettingIndicator")
+                    appendLine("   💯 Score: ${String.format("%.1f", horse.score)} points")
+                    appendLine("   🏇 J: ${horse.horse.jockey}")
+                    appendLine("   👨‍🏫 T: ${horse.horse.trainer}")
+                    appendLine("   🚪 Barrier: ${horse.horse.barrier} • ⚖️ Weight: ${horse.horse.weight}kg")
+                    
+                    if (horse.isStandout) {
+                        appendLine("   ⭐ STANDOUT SELECTION")
+                    }
+                    
+                    // Add some spacing between horses
+                    if (index < allHorses.size - 1) {
+                        appendLine("   ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
+                    }
+                    appendLine()
+                }
+                
+                appendLine("═".repeat(50))
+                appendLine()
+            }
+        }
+        
+        appendLine("📱 Generated by SteamaTip AI")
+        appendLine("🎯 Advanced horse racing analysis with real-time data")
+        appendLine("🔬 All horses analyzed with comprehensive scoring")
+    }
+    
+    val shareIntent = Intent().apply {
+        action = Intent.ACTION_SEND
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, shareText)
+        putExtra(Intent.EXTRA_SUBJECT, "Complete Race Analysis - $selectedDate")
+    }
+    
+    context.startActivity(Intent.createChooser(shareIntent, "Share Complete Race Analysis"))
 }

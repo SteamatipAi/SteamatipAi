@@ -176,7 +176,8 @@ fun SingleRaceResultsScreen(
         )
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 80.dp) // Add bottom padding for system UI
         ) {
             itemsIndexed(horsesToShow) { index, horse ->
                 // Only the TOP horse (index 0) gets special colors if it qualifies

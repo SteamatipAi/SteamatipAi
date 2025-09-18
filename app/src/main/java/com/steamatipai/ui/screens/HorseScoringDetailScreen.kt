@@ -59,7 +59,7 @@ fun HorseScoringDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp)
+                .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 80.dp) // Add bottom padding for system UI
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
