@@ -69,7 +69,10 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
     
-    // Professional CSV export that works perfectly with Excel
+    // Full Excel formatting with Android-compatible POI
+    implementation("org.apache.poi:poi:4.1.2")
+    implementation("org.apache.poi:poi-ooxml:4.1.2")
+    implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
     
     // Testing
     testImplementation(libs.junit)
