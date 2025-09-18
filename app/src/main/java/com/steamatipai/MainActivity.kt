@@ -15,6 +15,8 @@ import androidx.navigation.compose.rememberNavController
 import com.steamatipai.ui.screens.DateSelectionScreen
 import com.steamatipai.ui.screens.TrackSelectionScreen
 import com.steamatipai.ui.screens.ResultsScreen
+import com.steamatipai.ui.screens.RaceSelectionScreen
+import com.steamatipai.ui.screens.SingleRaceResultsScreen
 import com.steamatipai.ui.theme.SteamaTipAiTheme
 
 class MainActivity : ComponentActivity() {
@@ -54,7 +56,7 @@ fun SteamaTipAiApp() {
                 onTracksSelected = { tracks ->
                     // Pass the full track objects as a serializable format
                     val trackData = tracks.joinToString("|") { "${it.key}::${it.name}::${it.state}" }
-                    navController.navigate("results/$date/$trackData")
+                    navController.navigate("race_selection/$date/$trackData")
                 },
                 onBack = {
                     navController.popBackStack()
@@ -62,7 +64,7 @@ fun SteamaTipAiApp() {
             )
         }
         
-        composable("results/{date}/{tracks}") { backStackEntry ->
+        composable("race_selection/{date}/{tracks}") { backStackEntry ->
             val date = backStackEntry.arguments?.getString("date") ?: ""
             val tracksData = backStackEntry.arguments?.getString("tracks") ?: ""
             
@@ -76,9 +78,12 @@ fun SteamaTipAiApp() {
                 }
             }
             
-            ResultsScreen(
+            RaceSelectionScreen(
                 selectedDate = date,
                 selectedTracks = selectedTracks,
+                onRaceSelected = { raceResult ->
+                    // Handle race selection within the screen
+                },
                 onBack = {
                     navController.popBackStack()
                 }
