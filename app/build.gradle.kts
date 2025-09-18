@@ -39,6 +39,7 @@ android {
     }
 }
 
+
 dependencies {
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
@@ -69,10 +70,8 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
     
-    // Full Excel formatting with Android-compatible POI
-    implementation("org.apache.poi:poi:4.1.2")
-    implementation("org.apache.poi:poi-ooxml:4.1.2")
-    implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
+    // Aspose.Cells for Android - Proper version and repository for full Excel formatting
+    implementation("com.aspose:aspose-cells:25.6:android.via.java")
     
     // Testing
     testImplementation(libs.junit)

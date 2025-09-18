@@ -3,15 +3,18 @@ package com.steamatipai.utils
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.aspose.cells.*
 import com.steamatipai.data.models.BetType
 import com.steamatipai.data.models.RaceResult
 import com.steamatipai.data.models.ScoredHorse
-import org.apache.poi.ss.usermodel.*
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import org.apache.poi.ss.util.CellRangeAddress
 import java.io.File
-import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 
+/**
+ * Professional Excel exporter using Aspose.Cells for Android
+ * Creates real .xlsx files with ALL your formatting requirements automatically applied
+ */
 class ExcelExporter {
     
     fun exportBestBetsToExcel(
@@ -20,32 +23,33 @@ class ExcelExporter {
         selectedDate: String
     ) {
         try {
-            val workbook = XSSFWorkbook()
-            val sheet = workbook.createSheet("Best Bets Analysis")
+            // Initialize Aspose.Cells workbook
+            val workbook = Workbook()
+            val worksheet = workbook.worksheets[0]
+            worksheet.name = "Best Bets Analysis"
             
-            // Create all required styles
+            // Create all professional styles with your EXACT requirements
             val styles = createCompleteStyles(workbook, bestBets)
             
-            // Create header with filtering enabled
-            createProfessionalHeader(sheet, styles.header)
+            // Create header with professional formatting
+            createProfessionalHeader(worksheet, styles)
             
-            // Add all data with EXACT formatting as requested
-            addDataWithExactFormatting(sheet, bestBets, styles)
+            // Add all data with EXACT formatting as you requested
+            addDataWithExactFormatting(worksheet, bestBets, styles)
             
             // Format columns EXACTLY as you specified
-            formatColumnsExactly(sheet, bestBets)
+            formatColumnsExactly(worksheet, bestBets)
             
             // Enable filtering on ALL rows
-            enableFiltering(sheet)
+            enableFiltering(worksheet)
             
-            // Save as true Excel file
-            val fileName = "SteamaTip_BestBets_${selectedDate.replace("-", "")}.xlsx"
+            // Save as true Excel file with timestamp
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "SteamaTip_BestBets_Professional_$timestamp.xlsx"
             val file = File(context.getExternalFilesDir(null), fileName)
             
-            FileOutputStream(file).use { outputStream ->
-                workbook.write(outputStream)
-            }
-            workbook.close()
+            workbook.save(file.absolutePath, SaveFormat.XLSX)
+            workbook.dispose()
             
             shareExcelFile(context, file)
             
@@ -56,71 +60,83 @@ class ExcelExporter {
     }
     
     private fun createCompleteStyles(workbook: Workbook, bestBets: List<Pair<RaceResult, ScoredHorse>>): ExcelStyles {
-        // Header style
-        val headerStyle = workbook.createCellStyle()
-        val headerFont = workbook.createFont()
-        headerFont.bold = true
-        headerFont.color = IndexedColors.WHITE.index
-        headerFont.fontHeightInPoints = 12
-        headerStyle.setFont(headerFont)
-        headerStyle.fillForegroundColor = IndexedColors.DARK_BLUE.index
-        headerStyle.fillPattern = FillPatternType.SOLID_FOREGROUND
-        headerStyle.alignment = HorizontalAlignment.CENTER
-        headerStyle.verticalAlignment = VerticalAlignment.CENTER
+        // Header style - Bold white on dark blue
+        val headerStyle = workbook.createStyle()
+        headerStyle.font.isBold = true
+        headerStyle.font.color = Color.getWhite()
+        headerStyle.font.size = 12
+        headerStyle.foregroundColor = Color.getDarkBlue()
+        headerStyle.pattern = BackgroundType.SOLID
+        headerStyle.horizontalAlignment = TextAlignmentType.CENTER
+        headerStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(headerStyle)
         
-        // Track color styles (NOT Green/Blue/Purple)
+        // Track color styles (avoiding green/blue/purple as requested)
         val trackNames = bestBets.map { it.first.race.venue }.distinct()
         val trackColors = listOf(
-            IndexedColors.ORANGE.index,
-            IndexedColors.YELLOW.index,
-            IndexedColors.TURQUOISE.index,
-            IndexedColors.PINK.index,
-            IndexedColors.LIME.index,
-            IndexedColors.CORAL.index
+            Color.getOrange(),
+            Color.getYellow(),
+            Color.getTurquoise(),
+            Color.getPink(),
+            Color.getLightGray(),
+            Color.getLavender()
         )
         
-        val trackStyleMap = mutableMapOf<String, CellStyle>()
+        val trackStyleMap = mutableMapOf<String, Style>()
         trackNames.forEachIndexed { index, trackName ->
-            val style = workbook.createCellStyle()
-            style.fillForegroundColor = trackColors[index % trackColors.size]
-            style.fillPattern = FillPatternType.SOLID_FOREGROUND
+            val style = workbook.createStyle()
+            style.font.isBold = true
+            style.foregroundColor = trackColors[index % trackColors.size]
+            style.pattern = BackgroundType.SOLID
+            style.horizontalAlignment = TextAlignmentType.CENTER
+            style.verticalAlignment = TextAlignmentType.CENTER
             addBorders(style)
             trackStyleMap[trackName] = style
         }
         
-        // Bet type color styles (Green/Blue/Purple as requested)
-        val superBetStyle = workbook.createCellStyle()
-        superBetStyle.fillForegroundColor = IndexedColors.LIGHT_GREEN.index
-        superBetStyle.fillPattern = FillPatternType.SOLID_FOREGROUND
-        superBetStyle.alignment = HorizontalAlignment.CENTER
+        // Bet type color styles (Green/Blue/Purple as you specified)
+        val superBetStyle = workbook.createStyle()
+        superBetStyle.font.isBold = true
+        superBetStyle.font.color = Color.getWhite()
+        superBetStyle.foregroundColor = Color.getGreen()  // Super Bet = Green
+        superBetStyle.pattern = BackgroundType.SOLID
+        superBetStyle.horizontalAlignment = TextAlignmentType.CENTER
+        superBetStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(superBetStyle)
         
-        val bestBetStyle = workbook.createCellStyle()
-        bestBetStyle.fillForegroundColor = IndexedColors.LIGHT_BLUE.index
-        bestBetStyle.fillPattern = FillPatternType.SOLID_FOREGROUND
-        bestBetStyle.alignment = HorizontalAlignment.CENTER
+        val bestBetStyle = workbook.createStyle()
+        bestBetStyle.font.isBold = true
+        bestBetStyle.font.color = Color.getWhite()
+        bestBetStyle.foregroundColor = Color.getBlue()   // Best Bet = Blue
+        bestBetStyle.pattern = BackgroundType.SOLID
+        bestBetStyle.horizontalAlignment = TextAlignmentType.CENTER
+        bestBetStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(bestBetStyle)
         
-        val goodBetStyle = workbook.createCellStyle()
-        goodBetStyle.fillForegroundColor = IndexedColors.LAVENDER.index
-        goodBetStyle.fillPattern = FillPatternType.SOLID_FOREGROUND
-        goodBetStyle.alignment = HorizontalAlignment.CENTER
+        val goodBetStyle = workbook.createStyle()
+        goodBetStyle.font.isBold = true
+        goodBetStyle.font.color = Color.getWhite()
+        goodBetStyle.foregroundColor = Color.getPurple()  // Good Bet = Purple
+        goodBetStyle.pattern = BackgroundType.SOLID
+        goodBetStyle.horizontalAlignment = TextAlignmentType.CENTER
+        goodBetStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(goodBetStyle)
         
-        // Centered style
-        val centeredStyle = workbook.createCellStyle()
-        centeredStyle.alignment = HorizontalAlignment.CENTER
-        centeredStyle.verticalAlignment = VerticalAlignment.CENTER
+        // Centered style for specific columns
+        val centeredStyle = workbook.createStyle()
+        centeredStyle.horizontalAlignment = TextAlignmentType.CENTER
+        centeredStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(centeredStyle)
         
-        // Text wrap style
-        val wrapStyle = workbook.createCellStyle()
-        wrapStyle.wrapText = true
+        // Text wrap style for race names
+        val wrapStyle = workbook.createStyle()
+        wrapStyle.isTextWrapped = true
+        wrapStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(wrapStyle)
         
-        // Regular style
-        val regularStyle = workbook.createCellStyle()
+        // Regular style with borders
+        val regularStyle = workbook.createStyle()
+        regularStyle.verticalAlignment = TextAlignmentType.CENTER
         addBorders(regularStyle)
         
         return ExcelStyles(
@@ -135,8 +151,7 @@ class ExcelExporter {
         )
     }
     
-    private fun createProfessionalHeader(sheet: Sheet, headerStyle: CellStyle) {
-        val headerRow = sheet.createRow(0)
+    private fun createProfessionalHeader(worksheet: Worksheet, styles: ExcelStyles) {
         val headers = arrayOf(
             "Track", "Race #", "Race Name", "Time", "Distance", 
             "Horse #", "Horse Name", "Score", "Bet Type", 
@@ -144,23 +159,25 @@ class ExcelExporter {
         )
         
         headers.forEachIndexed { index, header ->
-            val cell = headerRow.createCell(index)
-            cell.setCellValue(header)
-            cell.cellStyle = headerStyle
+            val cell = worksheet.cells[0, index]
+            cell.putValue(header)
+            cell.setStyle(styles.header)
         }
     }
     
     private fun addDataWithExactFormatting(
-        sheet: Sheet, 
+        worksheet: Worksheet, 
         bestBets: List<Pair<RaceResult, ScoredHorse>>, 
         styles: ExcelStyles
     ) {
-        var rowIndex = 1
+        // Sort data by track then race number for organized display
+        val sortedBets = bestBets.sortedWith(
+            compareBy<Pair<RaceResult, ScoredHorse>> { it.first.race.venue }
+                .thenBy { it.first.race.raceNumber }
+        )
         
-        bestBets.sortedWith(compareBy<Pair<RaceResult, ScoredHorse>> { it.first.race.venue }
-            .thenBy { it.first.race.raceNumber }).forEach { (raceResult, horse) ->
-            
-            val row = sheet.createRow(rowIndex++)
+        sortedBets.forEachIndexed { index, (raceResult, horse) ->
+            val rowIndex = index + 1
             
             val betType = if (raceResult.bettingRecommendations.isNotEmpty()) {
                 raceResult.bettingRecommendations[0].betType
@@ -182,81 +199,88 @@ class ExcelExporter {
             
             val trackStyle = styles.trackStyles[raceResult.race.venue] ?: styles.regular
             
-            // EXACT formatting as requested
+            // Apply EXACT formatting as you specified:
             val cellConfigs = listOf(
-                CellConfig(0, raceResult.race.venue, trackStyle), // A: Track - color coded
-                CellConfig(1, raceResult.race.raceNumber.toString(), styles.centered), // B: Centered
-                CellConfig(2, raceResult.race.name, styles.textWrap), // C: Wrap text
-                CellConfig(3, raceResult.race.time, styles.centered), // D: Centered
-                CellConfig(4, "${raceResult.race.distance}m", styles.centered), // E: Centered
-                CellConfig(5, horse.horse.number.toString(), styles.centered), // F: Centered
-                CellConfig(6, horse.horse.name, styles.regular), // G: Auto-width
-                CellConfig(7, String.format("%.1f", horse.score), styles.centered), // H: Centered
-                CellConfig(8, betTypeText, betTypeStyle), // I: Color coded bet type
-                CellConfig(9, horse.horse.jockey, styles.regular), // J: Auto-width
-                CellConfig(10, horse.horse.trainer, styles.regular), // K: Auto-width
-                CellConfig(11, horse.horse.barrier.toString(), styles.centered), // L: Centered
-                CellConfig(12, "${horse.horse.weight}kg", styles.centered) // M: Centered
+                CellConfig(0, raceResult.race.venue, trackStyle),                    // A: Track - color coded
+                CellConfig(1, raceResult.race.raceNumber.toString(), styles.centered), // B: Race # - centered
+                CellConfig(2, raceResult.race.name, styles.textWrap),                // C: Race name - wrapped
+                CellConfig(3, raceResult.race.time, styles.centered),               // D: Time - centered
+                CellConfig(4, "${raceResult.race.distance}m", styles.centered),     // E: Distance - centered
+                CellConfig(5, horse.horse.number.toString(), styles.centered),      // F: Horse # - centered
+                CellConfig(6, horse.horse.name, styles.regular),                    // G: Horse name - auto-width
+                CellConfig(7, String.format("%.1f", horse.score), styles.centered), // H: Score - centered
+                CellConfig(8, betTypeText, betTypeStyle),                           // I: Bet type - color coded
+                CellConfig(9, horse.horse.jockey, styles.regular),                  // J: Jockey - auto-width
+                CellConfig(10, horse.horse.trainer, styles.regular),                // K: Trainer - auto-width
+                CellConfig(11, horse.horse.barrier.toString(), styles.centered),    // L: Barrier - centered
+                CellConfig(12, "${horse.horse.weight}kg", styles.centered)          // M: Weight - centered
             )
             
             cellConfigs.forEach { config ->
-                val cell = row.createCell(config.columnIndex)
-                cell.setCellValue(config.value)
-                cell.cellStyle = config.style
+                val cell = worksheet.cells[rowIndex, config.columnIndex]
+                cell.putValue(config.value)
+                cell.setStyle(config.style)
             }
         }
+        
+        // Add summary footer
+        val summaryRow = bestBets.size + 2
+        val summaryCell = worksheet.cells[summaryRow, 0]
+        summaryCell.putValue("Total Best Bets: ${bestBets.size}")
+        summaryCell.setStyle(styles.header)
+        
+        val timestampCell = worksheet.cells[summaryRow + 1, 0]
+        timestampCell.putValue("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}")
     }
     
-    private fun formatColumnsExactly(sheet: Sheet, bestBets: List<Pair<RaceResult, ScoredHorse>>) {
-        // Auto-size all columns first
-        for (i in 0..12) {
-            sheet.autoSizeColumn(i)
-        }
-        
-        // Get maximum lengths for auto-width columns
+    private fun formatColumnsExactly(worksheet: Worksheet, bestBets: List<Pair<RaceResult, ScoredHorse>>) {
+        // Calculate maximum lengths for auto-width columns
         val trackNames = bestBets.map { it.first.race.venue }
         val raceNames = bestBets.map { it.first.race.name }
         val horseNames = bestBets.map { it.second.horse.name }
         val jockeyNames = bestBets.map { it.second.horse.jockey }
         val trainerNames = bestBets.map { it.second.horse.trainer }
         
-        // Set column widths EXACTLY as requested
-        // A: Wide enough for longest track name
-        val maxTrackWidth = (trackNames.maxOfOrNull { it.length } ?: 10) * 350
-        sheet.setColumnWidth(0, Math.max(4000, maxTrackWidth))
+        // Auto-fit all columns first
+        worksheet.autoFitColumns()
+        
+        // Set specific widths as you requested:
+        // A: Wide enough for longest track name + color coding
+        val maxTrackWidth = (trackNames.maxOfOrNull { it.length } ?: 15) * 1.5
+        worksheet.cells.setColumnWidthPixel(0, (maxTrackWidth * 8).toInt().coerceAtLeast(120))
         
         // C: Wide enough for longest race name with wrapping
-        val maxRaceNameWidth = (raceNames.maxOfOrNull { it.length } ?: 20) * 300
-        sheet.setColumnWidth(2, Math.max(6000, maxRaceNameWidth))
+        val maxRaceWidth = (raceNames.maxOfOrNull { it.length } ?: 25) * 1.2
+        worksheet.cells.setColumnWidthPixel(2, (maxRaceWidth * 8).toInt().coerceAtLeast(200))
         
         // G: Wide enough for longest horse name
-        val maxHorseNameWidth = (horseNames.maxOfOrNull { it.length } ?: 15) * 350
-        sheet.setColumnWidth(6, Math.max(4000, maxHorseNameWidth))
+        val maxHorseWidth = (horseNames.maxOfOrNull { it.length } ?: 20) * 1.2
+        worksheet.cells.setColumnWidthPixel(6, (maxHorseWidth * 8).toInt().coerceAtLeast(150))
         
-        // I: Wide enough for longest bet type wording
-        sheet.setColumnWidth(8, 4000)
+        // I: Wide enough for bet type wording + color coding
+        worksheet.cells.setColumnWidthPixel(8, 120)
         
         // J: Wide enough for longest jockey name
-        val maxJockeyWidth = (jockeyNames.maxOfOrNull { it.length } ?: 15) * 350
-        sheet.setColumnWidth(9, Math.max(4000, maxJockeyWidth))
+        val maxJockeyWidth = (jockeyNames.maxOfOrNull { it.length } ?: 15) * 1.2
+        worksheet.cells.setColumnWidthPixel(9, (maxJockeyWidth * 8).toInt().coerceAtLeast(120))
         
         // K: Wide enough for longest trainer name
-        val maxTrainerWidth = (trainerNames.maxOfOrNull { it.length } ?: 15) * 350
-        sheet.setColumnWidth(10, Math.max(4000, maxTrainerWidth))
+        val maxTrainerWidth = (trainerNames.maxOfOrNull { it.length } ?: 15) * 1.2
+        worksheet.cells.setColumnWidthPixel(10, (maxTrainerWidth * 8).toInt().coerceAtLeast(120))
     }
     
-    private fun enableFiltering(sheet: Sheet) {
-        val lastRow = sheet.lastRowNum
+    private fun enableFiltering(worksheet: Worksheet) {
+        val lastRow = worksheet.cells.maxDataRow
         if (lastRow > 0) {
-            sheet.setAutoFilter(CellRangeAddress(0, lastRow, 0, 12))
+            worksheet.autoFilter.range = "A1:M${lastRow + 1}"
         }
     }
     
-    private fun addBorders(style: CellStyle) {
-        style.borderBottom = BorderStyle.THIN
-        style.borderTop = BorderStyle.THIN
-        style.borderRight = BorderStyle.THIN
-        style.borderLeft = BorderStyle.THIN
+    private fun addBorders(style: Style) {
+        style.setBorder(BorderType.BOTTOM_BORDER, CellBorderType.THIN, Color.getBlack())
+        style.setBorder(BorderType.TOP_BORDER, CellBorderType.THIN, Color.getBlack())
+        style.setBorder(BorderType.LEFT_BORDER, CellBorderType.THIN, Color.getBlack())
+        style.setBorder(BorderType.RIGHT_BORDER, CellBorderType.THIN, Color.getBlack())
     }
     
     private fun shareExcelFile(context: Context, file: File) {
@@ -272,11 +296,22 @@ class ExcelExporter {
                 type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, "SteamaTip AI - Professional Best Bets Analysis")
-                putExtra(Intent.EXTRA_TEXT, "Complete Best Bets analysis with ALL formatting:\n• Color-coded tracks\n• Color-coded bet types\n• Auto-sized columns\n• Filtering enabled\n• Professional layout")
+                putExtra(Intent.EXTRA_TEXT, "Complete Professional Excel Analysis with ALL formatting automatically applied:\n" +
+                        "✅ All rows with filtering enabled\n" +
+                        "✅ Track names auto-width + color coded (avoiding green/blue/purple)\n" +
+                        "✅ Race numbers centered\n" +
+                        "✅ Race names auto-width with text wrapping\n" +
+                        "✅ Time, Distance, Horse# centered\n" +
+                        "✅ Horse names auto-width\n" +
+                        "✅ Scores centered\n" +
+                        "✅ Bet types color coded (Green=Super, Blue=Best, Purple=Good)\n" +
+                        "✅ Jockey/Trainer names auto-width\n" +
+                        "✅ Barrier/Weight centered\n" +
+                        "✅ True Excel .xlsx format with ALL formatting automatically applied")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             
-            context.startActivity(Intent.createChooser(shareIntent, "Share Complete Excel Analysis"))
+            context.startActivity(Intent.createChooser(shareIntent, "Share Professional Excel Analysis"))
             
         } catch (e: Exception) {
             println("❌ Error sharing Excel file: ${e.message}")
@@ -287,17 +322,17 @@ class ExcelExporter {
     private data class CellConfig(
         val columnIndex: Int,
         val value: String,
-        val style: CellStyle
+        val style: Style
     )
     
     private data class ExcelStyles(
-        val header: CellStyle,
-        val trackStyles: Map<String, CellStyle>,
-        val superBet: CellStyle,
-        val bestBet: CellStyle,
-        val goodBet: CellStyle,
-        val centered: CellStyle,
-        val textWrap: CellStyle,
-        val regular: CellStyle
+        val header: Style,
+        val trackStyles: Map<String, Style>,
+        val superBet: Style,
+        val bestBet: Style,
+        val goodBet: Style,
+        val centered: Style,
+        val textWrap: Style,
+        val regular: Style
     )
 }
