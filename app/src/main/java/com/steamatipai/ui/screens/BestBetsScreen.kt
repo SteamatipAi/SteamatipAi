@@ -216,7 +216,7 @@ fun BestBetsScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Export to Excel") },
+                            text = { Text("Export to Professional Excel") },
                             onClick = {
                                 showShareMenu = false
                                 val bestBets = filterBestBets(raceResults)
