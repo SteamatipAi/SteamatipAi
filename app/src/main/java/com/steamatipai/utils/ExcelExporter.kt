@@ -8,8 +8,6 @@ import com.steamatipai.data.models.RaceResult
 import com.steamatipai.data.models.ScoredHorse
 import java.io.File
 import java.io.FileWriter
-import java.text.SimpleDateFormat
-import java.util.*
 
 class ExcelExporter {
     
@@ -19,44 +17,32 @@ class ExcelExporter {
         selectedDate: String
     ) {
         try {
-            // Create professional CSV file that opens beautifully in Excel
+            // Create professional CSV that meets all your Excel requirements
             val fileName = "SteamaTip_BestBets_${selectedDate.replace("-", "")}.csv"
             val file = File(context.getExternalFilesDir(null), fileName)
             
-            FileWriter(file).use { fileWriter ->
-                // Write header with proper Excel formatting hints
-                fileWriter.write("sep=,\n") // Tell Excel to use comma separator
+            FileWriter(file).use { writer ->
+                // Professional CSV header that Excel will format beautifully
+                writer.write("Track Name,Race Number,Race Name,Race Time,Distance,Horse Number,Horse Name,Score Points,Bet Classification,Jockey Name,Trainer Name,Barrier Position,Horse Weight\n")
                 
-                // Professional header row
-                val header = listOf(
-                    "Track Name", "Race Number", "Race Name", "Race Time", "Distance", 
-                    "Horse Number", "Horse Name", "Score Points", "Bet Classification", 
-                    "Jockey Name", "Trainer Name", "Barrier Position", "Horse Weight"
-                )
-                fileWriter.write(header.joinToString(",") { "\"$it\"" } + "\n")
-                
-                // Group by track for better organization
+                // Group by track and sort professionally
                 val bestBetsByTrack = bestBets.groupBy { it.first.race.venue }
                 
-                // Sort tracks alphabetically for consistent presentation
                 bestBetsByTrack.toSortedMap().forEach { (trackName, trackBestBets) ->
-                    
-                    // Sort by race number within each track
                     trackBestBets.sortedBy { it.first.race.raceNumber }.forEach { (raceResult, horse) ->
                         
-                        // Determine bet type
                         val betType = if (raceResult.bettingRecommendations.isNotEmpty()) {
                             raceResult.bettingRecommendations[0].betType
                         } else BetType.CONSIDER
                         
                         val betTypeText = when (betType) {
-                            BetType.SUPER_BET -> "⭐ SUPER BET"
-                            BetType.BEST_BET -> "🔵 BEST BET"
-                            BetType.GOOD_BET -> "🟣 GOOD BET"
+                            BetType.SUPER_BET -> "SUPER BET ⭐"
+                            BetType.BEST_BET -> "BEST BET 🔵"
+                            BetType.GOOD_BET -> "GOOD BET 🟣"
                             else -> "CONSIDER"
                         }
                         
-                        // Create professional data row - properly escape commas and quotes
+                        // Create properly formatted CSV row
                         val data = listOf(
                             trackName,
                             raceResult.race.raceNumber.toString(),
@@ -73,25 +59,23 @@ class ExcelExporter {
                             "${horse.horse.weight}kg"
                         )
                         
-                        // Properly format CSV with quotes to handle commas in names
+                        // Properly escape CSV data
                         val csvRow = data.joinToString(",") { field ->
-                            "\"${field.replace("\"", "\"\"")}\""
+                            if (field.contains(",") || field.contains("\"") || field.contains("\n")) {
+                                "\"${field.replace("\"", "\"\"")}\""
+                            } else {
+                                field
+                            }
                         }
-                        fileWriter.write(csvRow + "\n")
+                        writer.write(csvRow + "\n")
                     }
                 }
-                
-                // Add summary footer
-                fileWriter.write("\n")
-                fileWriter.write("\"Summary\",\"${bestBets.size} Total Best Bets\",\"Generated: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"\n")
-                fileWriter.write("\"Source\",\"SteamaTip AI\",\"Professional Racing Analysis\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"\n")
             }
             
-            // Share the file
             shareExcelFile(context, file)
             
         } catch (e: Exception) {
-            println("❌ Error creating professional CSV file: ${e.message}")
+            println("❌ Error creating Excel file: ${e.message}")
             e.printStackTrace()
         }
     }
@@ -109,7 +93,7 @@ class ExcelExporter {
                 type = "text/csv"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, "SteamaTip AI - Professional Best Bets Analysis")
-                putExtra(Intent.EXTRA_TEXT, "Professional Best Bets analysis exported as Excel-compatible CSV.\n\nFeatures:\n• Color-coded bet types\n• Organized by track\n• Complete horse details\n• Professional formatting\n\nOpen in Excel for best viewing experience.")
+                putExtra(Intent.EXTRA_TEXT, "Professional Best Bets Analysis Report\n\nThis CSV file opens perfectly in Excel with:\n• Professional column headers\n• Organized by track\n• Complete horse details\n• Bet type classifications\n• Ready for analysis\n\nGenerated by SteamaTip AI")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             

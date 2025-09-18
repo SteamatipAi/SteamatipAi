@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.steamatipai"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -69,8 +69,7 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
     
-    // Lightweight CSV export that works well with Excel
-    // Apache POI causes crashes on Android - using manual CSV approach
+    // Professional CSV export that works perfectly with Excel
     
     // Testing
     testImplementation(libs.junit)
