@@ -288,14 +288,62 @@ Betting recommendations are based on the point gap between 1st and 2nd place hor
 
 ---
 
+## Best Bets Feature
+
+### Overview
+The Best Bets feature provides a streamlined analysis focused exclusively on horses with the strongest betting recommendations. This feature filters the complete analysis to show only horses that meet specific confidence thresholds.
+
+### Best Bets Criteria
+Only horses meeting these betting recommendation levels are included:
+
+#### Super Bet (Green Border)
+- **Point Gap**: ≥ 8.0 points above second place
+- **Confidence**: Highest - significant scoring advantage
+- **Visual Indicator**: Bright green border
+- **Recommendation**: Strong betting opportunity
+
+#### Best Bet (Blue Border)  
+- **Point Gap**: 5.0-7.9 points above second place
+- **Confidence**: High - clear scoring advantage
+- **Visual Indicator**: Blue border
+- **Recommendation**: Good betting opportunity
+
+#### Good Bet (Purple Border)
+- **Point Gap**: 3.0-4.9 points above second place  
+- **Confidence**: Moderate - noticeable scoring advantage
+- **Visual Indicator**: Purple border
+- **Recommendation**: Reasonable betting opportunity
+
+### Best Bets User Flow
+1. **Multi-Track Selection**: Select multiple tracks using existing checkbox system
+2. **Click Best Bets**: Use dedicated Best Bets button (green border)
+3. **Filtered Analysis**: System analyzes all tracks but shows only qualifying horses
+4. **Track Organization**: Results grouped by track with clear headers
+5. **Export Options**: Share as formatted text or export to Excel (CSV)
+
+### Export Functionality
+- **Text Format**: Clean, formatted message suitable for email/messaging
+- **Excel Format**: CSV file with structured data (Track, Race, Horse, Score, Bet Type, etc.)
+- **Multi-Track Support**: Single export covers all selected tracks
+- **Professional Layout**: Organized by track with clear betting indicators
+
+### Data Integrity
+The Best Bets feature maintains the same strict data integrity standards:
+- **Real Data Only**: No mock or fallback data
+- **Same Scoring Laws**: Uses identical scoring methodology as regular analysis
+- **Live Analysis**: Fresh analysis performed for each Best Bets request
+- **Transparent Filtering**: Clear criteria for inclusion/exclusion
+
 ## Conclusion
 
 SteamaTip AI's scoring system provides a comprehensive, fair, and transparent method for analyzing horse racing performance. The adaptive approach ensures that horses are evaluated based on their specific circumstances, whether they're regular runners, returning from spells, or first-time starters.
+
+The addition of the Best Bets feature provides users with a powerful tool for quickly identifying the strongest betting opportunities across multiple tracks, while maintaining the same rigorous analysis standards.
 
 The system's reliance on real data and transparent calculations ensures that users can trust the results and understand exactly why each horse received its score. This professional approach to horse racing analysis sets SteamaTip AI apart as a reliable and sophisticated betting analysis tool.
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: December 2024*  
-*SteamaTip AI - Professional Horse Racing Analysis*
+*Document Version: 2.0*  
+*Last Updated: September 2025*  
+*SteamaTip AI - Professional Horse Racing Analysis with Best Bets Feature*

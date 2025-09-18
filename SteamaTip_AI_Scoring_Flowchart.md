@@ -1,6 +1,57 @@
-# SteamaTip AI - Scoring System Flowchart
+# SteamaTip AI - Complete System Flowchart
 
-## Visual Flow Diagram
+## User Flow Diagram
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         SELECT DATE                 │
+                    └─────────────────┬───────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────┐
+                    │       SELECT TRACKS                 │
+                    │    (Multi-selection with checkboxes)│
+                    └─────────────────┬───────────────────┘
+                                      │
+                        ┌─────────────┴─────────────┐
+                        │                           │
+                        ▼                           ▼
+            ┌─────────────────────┐    ┌─────────────────────┐
+            │    ANALYSE BUTTON   │    │   BEST BETS BUTTON  │
+            │                     │    │                     │
+            │ • Complete Analysis │    │ • Filtered Analysis │
+            │ • All Horses        │    │ • Only Green/Blue/  │
+            │ • Race-by-Race      │    │   Purple Horses     │
+            └─────────┬───────────┘    └─────────┬───────────┘
+                      │                           │
+                      ▼                           ▼
+            ┌─────────────────────┐    ┌─────────────────────┐
+            │   RACE SELECTION    │    │   BEST BETS RESULTS │
+            │                     │    │                     │
+            │ • Choose Race       │    │ • Grouped by Track  │
+            │ • See All Races     │    │ • Clickable Horses  │
+            └─────────┬───────────┘    │ • Excel Export      │
+                      │                │ • Text Sharing      │
+                      ▼                └─────────────────────┘
+            ┌─────────────────────┐              
+            │  COMPLETE RACE FIELD│              
+            │                     │              
+            │ • All Horses Listed │              
+            │ • Clickable Details │              
+            │ • Share All Results │              
+            └─────────┬───────────┘              
+                      │                          
+                      ▼                          
+            ┌─────────────────────┐              
+            │  HORSE DETAIL VIEW  │              
+            │                     │              
+            │ • Complete Scoring  │              
+            │ • Law Breakdown     │              
+            │ • Form Analysis     │              
+            └─────────────────────┘              
+```
+
+## Horse Analysis Flow Diagram
 
 ```
                     ┌─────────────────────────────────────┐
@@ -141,6 +192,64 @@
 - **Confidence Levels**: Super Bet (8+), Best Bet (5-7.9), Good Bet (3-4.9)
 - **Visual Indicators**: Color coding and highlighting for easy identification
 
+## Best Bets Feature Flow
+
+```
+                    ┌─────────────────────────────────────┐
+                    │       BEST BETS BUTTON CLICKED      │
+                    └─────────────────┬───────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────┐
+                    │    ANALYZE ALL SELECTED TRACKS      │
+                    │    (Same scoring as regular flow)   │
+                    └─────────────────┬───────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────┐
+                    │         FILTER RESULTS              │
+                    │                                     │
+                    │ Include only horses with:           │
+                    │ • Super Bet (Green border)          │
+                    │ • Best Bet (Blue border)            │
+                    │ • Good Bet (Purple border)          │
+                    └─────────────────┬───────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────┐
+                    │      DISPLAY BY TRACK               │
+                    │                                     │
+                    │ • Group horses by track name        │
+                    │ • Show race number and details      │
+                    │ • Maintain clickable functionality  │
+                    │ • Color-coded betting indicators    │
+                    └─────────────────┬───────────────────┘
+                                      │
+                        ┌─────────────┴─────────────┐
+                        │                           │
+                        ▼                           ▼
+            ┌─────────────────────┐    ┌─────────────────────┐
+            │   SHARE AS TEXT     │    │   EXPORT TO EXCEL   │
+            │                     │    │                     │
+            │ • Formatted message │    │ • CSV format        │
+            │ • All tracks        │    │ • Structured data   │
+            │ • All best bets     │    │ • Opens in Excel    │
+            │ • Outlook/Messages  │    │ • Email attachment  │
+            └─────────────────────┘    └─────────────────────┘
+```
+
+### 5. Best Bets Filtering Criteria
+- **Super Bet (Green)**: Point gap ≥ 8.0 points above second place
+- **Best Bet (Blue)**: Point gap 5.0-7.9 points above second place  
+- **Good Bet (Purple)**: Point gap 3.0-4.9 points above second place
+- **Consider**: Point gap < 3.0 points (excluded from Best Bets)
+
+### 6. Export Functionality
+- **Text Format**: Formatted for easy reading in email/messages
+- **Excel Format**: CSV file with columns for Track, Race, Horse, Score, Bet Type, etc.
+- **Multi-Track Support**: Single export covers all selected tracks
+- **Real-Time Data**: All exports use live analysis results
+
 ---
 
-*This flowchart provides a comprehensive visual guide to the SteamaTip AI scoring system, showing how horses are categorized and scored based on their individual circumstances.*
+*This flowchart provides a comprehensive visual guide to the complete SteamaTip AI system, including both the detailed scoring methodology and the new Best Bets feature for quick identification of top betting opportunities.*
