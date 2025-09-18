@@ -44,9 +44,21 @@ fun RaceSelectionScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var analysisCompleted by remember { mutableStateOf(false) }
     var selectedRace by remember { mutableStateOf<RaceResult?>(null) }
+    var startTime by remember { mutableStateOf(0L) }
+    var elapsedTime by remember { mutableStateOf(0L) }
 
     val raceAnalysisService = remember { RaceAnalysisService() }
     val context = LocalContext.current
+
+    // Timer effect to update elapsed time during loading
+    LaunchedEffect(isLoading, startTime) {
+        if (isLoading && startTime > 0) {
+            while (isLoading) {
+                elapsedTime = System.currentTimeMillis() - startTime
+                kotlinx.coroutines.delay(100) // Update every 100ms
+            }
+        }
+    }
 
     // Show single race results if a race is selected
     if (selectedRace != null) {
@@ -64,6 +76,7 @@ fun RaceSelectionScreen(
     LaunchedEffect(selectedTracks) {
         if (!analysisCompleted) {
             try {
+                startTime = System.currentTimeMillis()
                 isLoading = true
                 error = null
 
@@ -210,8 +223,14 @@ fun RaceSelectionScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "This may take a few minutes",
+                        text = "Elapsed time: ${String.format("%.1f", elapsedTime / 1000.0)}s",
                         style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFFFD700),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "This may take a few minutes",
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f)
                     )
                 }

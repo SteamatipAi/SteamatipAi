@@ -82,7 +82,7 @@ fun SingleRaceResultsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 24.dp),
+                .padding(top = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -136,7 +136,7 @@ fun SingleRaceResultsScreen(
             border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f))
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -154,7 +154,7 @@ fun SingleRaceResultsScreen(
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${raceResult.race.distance}m • ${raceResult.race.surface} • ${raceResult.race.trackCondition}",
                     style = MaterialTheme.typography.bodySmall,
@@ -163,7 +163,7 @@ fun SingleRaceResultsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // All Horses List
         val horsesToShow = if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses else raceResult.topSelections

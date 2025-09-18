@@ -17,6 +17,7 @@ import com.steamatipai.ui.screens.TrackSelectionScreen
 import com.steamatipai.ui.screens.ResultsScreen
 import com.steamatipai.ui.screens.RaceSelectionScreen
 import com.steamatipai.ui.screens.SingleRaceResultsScreen
+import com.steamatipai.ui.screens.BestBetsScreen
 import com.steamatipai.ui.theme.SteamaTipAiTheme
 
 class MainActivity : ComponentActivity() {
@@ -58,6 +59,11 @@ fun SteamaTipAiApp() {
                     val trackData = tracks.joinToString("|") { "${it.key}::${it.name}::${it.state}" }
                     navController.navigate("race_selection/$date/$trackData")
                 },
+                onBestBetsSelected = { tracks ->
+                    // Pass to Best Bets flow
+                    val trackData = tracks.joinToString("|") { "${it.key}::${it.name}::${it.state}" }
+                    navController.navigate("best_bets/$date/$trackData")
+                },
                 onBack = {
                     navController.popBackStack()
                 }
@@ -84,6 +90,29 @@ fun SteamaTipAiApp() {
                 onRaceSelected = { raceResult ->
                     // Handle race selection within the screen
                 },
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable("best_bets/{date}/{tracks}") { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date") ?: ""
+            val tracksData = backStackEntry.arguments?.getString("tracks") ?: ""
+            
+            // Parse the track data back into proper format
+            val selectedTracks = tracksData.split("|").filter { it.isNotEmpty() }.map { trackData ->
+                val parts = trackData.split("::")
+                if (parts.size >= 3) {
+                    parts[0] // Return the full key (e.g., "2025Aug30,NSW,Rosehill Gardens")
+                } else {
+                    trackData // Fallback to original data
+                }
+            }
+            
+            BestBetsScreen(
+                selectedDate = date,
+                selectedTracks = selectedTracks,
                 onBack = {
                     navController.popBackStack()
                 }

@@ -67,7 +67,7 @@ fun HorseScoringDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Back button on its own line, centered
@@ -77,7 +77,7 @@ fun HorseScoringDetailScreen(
                         containerColor = Color(0xFFFFD700).copy(alpha = 0.2f)
                     ),
                     border = BorderStroke(2.dp, Color(0xFFFFD700)),
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 ) {
                     Text(
                         "← Back to Horses", 

@@ -34,6 +34,7 @@ import java.util.*
 fun TrackSelectionScreen(
     selectedDate: String,
     onTracksSelected: (List<Track>) -> Unit, // Changed from List<String> to List<Track>
+    onBestBetsSelected: (List<Track>) -> Unit, // New callback for Best Bets
     onBack: () -> Unit
 ) {
     var availableTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
@@ -118,7 +119,7 @@ fun TrackSelectionScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 24.dp),
+                .padding(top = 24.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -278,33 +279,91 @@ fun TrackSelectionScreen(
                 }
             }
 
-            // Analyze Button
-            Button(
-                onClick = { 
-                    // Convert selected track keys to actual track objects
-                    val selectedTrackObjects = availableTracks.filter { track ->
-                        selectedTracks.contains(track.key)
-                    }
-                    onTracksSelected(selectedTrackObjects) // Pass actual track objects
-                },
-                enabled = selectedTracks.isNotEmpty(),
+            // Action Buttons Row
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp)
+                    .padding(vertical = 8.dp)
                     .padding(bottom = 32.dp), // Extra bottom padding to move away from phone footer
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black,
-                    contentColor = Color(0xFFFFD700) // Gold color
-                ),
-                border = BorderStroke(2.dp, Color(0xFFFFD700)) // Gold border
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Analyse ${selectedTracks.size} Track${if (selectedTracks.size != 1) "s" else ""}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFFFFD700), // Gold color
-                    fontWeight = FontWeight.Bold
-                )
+                // Analyze Button (existing functionality)
+                Button(
+                    onClick = { 
+                        // Convert selected track keys to actual track objects
+                        val selectedTrackObjects = availableTracks.filter { track ->
+                            selectedTracks.contains(track.key)
+                        }
+                        onTracksSelected(selectedTrackObjects) // Pass actual track objects
+                    },
+                    enabled = selectedTracks.isNotEmpty(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Black,
+                        contentColor = Color(0xFFFFD700) // Gold color
+                    ),
+                    border = BorderStroke(2.dp, Color(0xFFFFD700)) // Gold border
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy((-4).dp, Alignment.CenterVertically)
+                    ) {
+                        Text(
+                            text = "Analyse ${selectedTracks.size}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Track${if (selectedTracks.size != 1) "s" else ""}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                // Best Bets Button (new functionality)
+                Button(
+                    onClick = { 
+                        // Convert selected track keys to actual track objects
+                        val selectedTrackObjects = availableTracks.filter { track ->
+                            selectedTracks.contains(track.key)
+                        }
+                        onBestBetsSelected(selectedTrackObjects) // Pass to Best Bets flow
+                    },
+                    enabled = selectedTracks.isNotEmpty(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Black, // Same as Analyse button
+                        contentColor = Color(0xFFFFD700) // Gold text
+                    ),
+                    border = BorderStroke(2.dp, Color(0xFF00FF00)) // Bright green border (same as Super Bet)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy((-4).dp, Alignment.CenterVertically)
+                    ) {
+                        Text(
+                            text = "BEST",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "BETS",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
         }
