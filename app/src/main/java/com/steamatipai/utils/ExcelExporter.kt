@@ -183,9 +183,14 @@ fun exportFullResultsToExcel(
         val file = File(context.getExternalFilesDir(null), fileName)
         
         workbook.save(file.absolutePath, SaveFormat.XLSX)
+        
+        // Check file size before sharing
+        val fileSizeMB = file.length() / (1024.0 * 1024.0)
+        println("📊 Excel file created: ${String.format("%.2f", fileSizeMB)} MB")
+        
         workbook.dispose()
         
-        shareFullResultsExcelFile(context, file, selectedDate)
+        shareFullResultsExcelFile(context, file, selectedDate, fileSizeMB)
         
     } catch (e: Exception) {
         println("❌ Full Results Excel creation failed: ${e.message}")
@@ -396,7 +401,7 @@ private fun enableFullResultsFiltering(worksheet: Worksheet) {
     }
 }
 
-private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate: String) {
+private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate: String, fileSizeMB: Double) {
     try {
         val uri = FileProvider.getUriForFile(
             context,
@@ -404,14 +409,25 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
             file
         )
         
+        // Check if file is too large for email (most email providers limit to 10-25MB)
+        val isLargeFile = fileSizeMB > 10.0
+        
         val shareIntent = Intent().apply {
             action = Intent.ACTION_SEND
             type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             putExtra(Intent.EXTRA_STREAM, uri)
+            
+            val sizeWarning = if (isLargeFile) {
+                "\n⚠️ FILE SIZE: ${String.format("%.1f", fileSizeMB)}MB - May be too large for some email providers\n" +
+                "💡 TIP: Try sharing via cloud storage (Google Drive, OneDrive) if email fails\n\n"
+            } else {
+                ""
+            }
+            
             putExtra(Intent.EXTRA_SUBJECT, "SteamaTip AI - Complete Professional Race Analysis - $selectedDate")
-            putExtra(Intent.EXTRA_TEXT, "Complete Professional Excel Analysis with ALL formatting automatically applied:\n" +
+            putExtra(Intent.EXTRA_TEXT, "${sizeWarning}Complete Professional Excel Analysis with ALL formatting automatically applied:\n" +
                     "✅ All rows with filtering enabled\n" +
-                    "✅ Track names auto-width + color coded (avoiding green/blue/purple)\n" +
+                    "✅ Track names auto-width + color coded\n" +
                     "✅ Race numbers centered\n" +
                     "✅ Race names auto-width with text wrapping\n" +
                     "✅ Time, Distance, Horse# centered\n" +
@@ -423,6 +439,11 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
                     "✅ True Excel .xlsx format with ALL formatting automatically applied\n" +
                     "✅ Complete field analysis with ALL horses included")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        
+        if (isLargeFile) {
+            println("⚠️ Large Excel file (${String.format("%.1f", fileSizeMB)}MB) - may have email attachment issues")
         }
         
         context.startActivity(Intent.createChooser(shareIntent, "Share Professional Complete Analysis"))
