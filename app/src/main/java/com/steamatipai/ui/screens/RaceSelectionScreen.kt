@@ -434,78 +434,97 @@ fun shareAllRaceResults(
         return
     }
     
-    val shareText = buildString {
-        appendLine("🏇 STEAMA TIP AI - COMPLETE RACE ANALYSIS")
-        appendLine("═══════════════════════════════════════════")
-        appendLine("📅 Date: $selectedDate")
-        appendLine("🏁 Total Races: ${raceResults.size}")
-        appendLine()
-        
-        // Group by track
-        val racesByTrack = raceResults.groupBy { it.race.venue }
-        
-        racesByTrack.forEach { (trackName, races) ->
-            appendLine("🏟️ $trackName".uppercase())
-            appendLine("▔".repeat(50))
+    try {
+        // Build a more concise share text to prevent memory issues
+        val shareText = buildString {
+            appendLine("🏇 STEAMA TIP AI - COMPLETE RACE ANALYSIS")
+            appendLine("═══════════════════════════════════════════")
+            appendLine("📅 Date: $selectedDate")
+            appendLine("🏁 Total Races: ${raceResults.size}")
             appendLine()
             
-            races.sortedBy { it.race.raceNumber }.forEach { raceResult ->
-                appendLine("🏇 RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
-                appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m • 🏁 ${raceResult.race.surface}")
-                appendLine("🌤️ Track: ${raceResult.race.trackCondition}")
-                
-                // Show ALL horses, not just top 5
-                val allHorses = if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses else raceResult.topSelections
-                appendLine("🐎 COMPLETE FIELD (${allHorses.size} runners):")
+            // Group by track
+            val racesByTrack = raceResults.groupBy { it.race.venue }
+            
+            racesByTrack.forEach { (trackName, races) ->
+                appendLine("🏟️ $trackName".uppercase())
+                appendLine("▔".repeat(30))
                 appendLine()
                 
-                allHorses.forEachIndexed { index, horse ->
-                    val position = index + 1
+                races.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+                    appendLine("🏇 RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
+                    appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
                     
-                    // Add betting indicator for top horse if applicable
-                    val bettingIndicator = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
-                        val topRecommendation = raceResult.bettingRecommendations[0]
-                        when (topRecommendation.betType) {
-                            com.steamatipai.data.models.BetType.SUPER_BET -> " ⭐ SUPER BET ⭐"
-                            com.steamatipai.data.models.BetType.BEST_BET -> " 🔵 BEST BET"
-                            com.steamatipai.data.models.BetType.GOOD_BET -> " 🟣 GOOD BET"
-                            else -> ""
-                        }
-                    } else ""
-                    
-                    appendLine("${position}. #${horse.horse.number} ${horse.horse.name}$bettingIndicator")
-                    appendLine("   💯 Score: ${String.format("%.1f", horse.score)} points")
-                    appendLine("   🏇 J: ${horse.horse.jockey}")
-                    appendLine("   👨‍🏫 T: ${horse.horse.trainer}")
-                    appendLine("   🚪 Barrier: ${horse.horse.barrier} • ⚖️ Weight: ${horse.horse.weight}kg")
-                    
-                    if (horse.isStandout) {
-                        appendLine("   ⭐ STANDOUT SELECTION")
+                    // Show only TOP 5 horses to keep size manageable
+                    val topHorses = if (raceResult.allHorses.isNotEmpty()) {
+                        raceResult.allHorses.take(5)
+                    } else {
+                        raceResult.topSelections.take(5)
                     }
                     
-                    // Add some spacing between horses
-                    if (index < allHorses.size - 1) {
-                        appendLine("   ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
+                    appendLine("🐎 TOP SELECTIONS (${topHorses.size} of ${if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses.size else raceResult.topSelections.size}):")
+                    
+                    topHorses.forEachIndexed { index, horse ->
+                        val position = index + 1
+                        
+                        // Add betting indicator for top horse if applicable
+                        val bettingIndicator = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                            val topRecommendation = raceResult.bettingRecommendations[0]
+                            when (topRecommendation.betType) {
+                                com.steamatipai.data.models.BetType.SUPER_BET -> " ⭐"
+                                com.steamatipai.data.models.BetType.BEST_BET -> " 🔵"
+                                com.steamatipai.data.models.BetType.GOOD_BET -> " 🟣"
+                                else -> ""
+                            }
+                        } else ""
+                        
+                        appendLine("${position}. #${horse.horse.number} ${horse.horse.name}$bettingIndicator")
+                        appendLine("   💯 ${String.format("%.1f", horse.score)} • J: ${horse.horse.jockey}")
                     }
+                    
+                    appendLine("═".repeat(30))
                     appendLine()
                 }
-                
-                appendLine("═".repeat(50))
-                appendLine()
             }
+            
+            appendLine("📱 Generated by SteamaTip AI")
         }
         
-        appendLine("📱 Generated by SteamaTip AI")
-        appendLine("🎯 Advanced horse racing analysis with real-time data")
-        appendLine("🔬 All horses analyzed with comprehensive scoring")
+        // Check text size and truncate if necessary (Android has ~1MB limit for Intent extras)
+        val finalText = if (shareText.length > 100000) {
+            shareText.take(95000) + "\n\n... (Content truncated for sharing)\n📱 Generated by SteamaTip AI"
+        } else {
+            shareText
+        }
+        
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, finalText)
+            putExtra(Intent.EXTRA_SUBJECT, "Complete Race Analysis - $selectedDate")
+            // Add flags to prevent issues
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        
+        // Use try-catch for the actual share action
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Share Complete Race Analysis"))
+        } catch (e: Exception) {
+            println("❌ Error sharing results: ${e.message}")
+            // Fallback: try with even shorter text
+            val shortText = "🏇 STEAMA TIP AI - RACE ANALYSIS\n📅 $selectedDate\n🏁 ${raceResults.size} races analyzed\n\n📱 Full results available in app"
+            val fallbackIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, shortText)
+                putExtra(Intent.EXTRA_SUBJECT, "Race Analysis - $selectedDate")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(Intent.createChooser(fallbackIntent, "Share Race Analysis"))
+        }
+        
+    } catch (e: Exception) {
+        println("❌ Critical error in share function: ${e.message}")
+        e.printStackTrace()
     }
-    
-    val shareIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, shareText)
-        putExtra(Intent.EXTRA_SUBJECT, "Complete Race Analysis - $selectedDate")
-    }
-    
-    context.startActivity(Intent.createChooser(shareIntent, "Share Complete Race Analysis"))
 }
