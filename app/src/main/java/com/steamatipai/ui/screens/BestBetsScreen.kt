@@ -401,7 +401,7 @@ fun BestBetHorseCard(
     }
     
     val betTypeText = when (betType) {
-        BetType.SUPER_BET -> "⭐ SUPER BET"
+        BetType.SUPER_BET -> "🟢 SUPER BET"
         BetType.BEST_BET -> "🔵 BEST BET"
         BetType.GOOD_BET -> "🟣 GOOD BET"
         else -> "CONSIDER"

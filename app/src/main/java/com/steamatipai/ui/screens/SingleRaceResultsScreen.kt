@@ -215,7 +215,7 @@ private fun shareRaceResult(context: android.content.Context, raceResult: RaceRe
         appendLine("⏰ ${raceResult.race.time} • ${raceResult.race.distance}m")
         appendLine()
         appendLine("🏆 Top Selections:")
-        raceResult.topSelections.take(5).forEachIndexed { index, horse ->
+        raceResult.topSelections.take(6).forEachIndexed { index, horse ->
             appendLine("${index + 1}. ${horse.horse.name} (${String.format("%.1f", horse.score)} pts)")
         }
         appendLine()
