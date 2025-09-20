@@ -39,6 +39,7 @@ import com.steamatipai.R
 import java.text.SimpleDateFormat
 import java.util.*
 import com.steamatipai.network.NetworkConfig
+import com.steamatipai.utils.ExcelExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -196,17 +197,40 @@ fun ResultsScreen(
                 )
             }
             
-            // Share button
-            IconButton(
-                onClick = {
-                    shareResults(context, results, selectedDate, selectedTracks, processingTime)
+            // Share button with dropdown menu
+            var showShareMenu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(
+                    onClick = {
+                        showShareMenu = true
+                    }
+                ) {
+                    Icon(
+                        Icons.Filled.Share,
+                        contentDescription = "Share Results",
+                        tint = Color(0xFFFFD700)
+                    )
                 }
-            ) {
-                Icon(
-                    Icons.Filled.Share,
-                    contentDescription = "Share Results",
-                    tint = Color(0xFFFFD700)
-                )
+                
+                DropdownMenu(
+                    expanded = showShareMenu,
+                    onDismissRequest = { showShareMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Share as Text") },
+                        onClick = {
+                            showShareMenu = false
+                            shareResults(context, results, selectedDate, selectedTracks, processingTime)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export to Professional Excel") },
+                        onClick = {
+                            showShareMenu = false
+                            exportFullResultsToExcel(context, results, selectedDate)
+                        }
+                    )
+                }
             }
         }
 
@@ -685,6 +709,75 @@ fun shareResults(
         
     } catch (e: Exception) {
         println("❌ Critical error in ResultsScreen share function: ${e.message}")
+        e.printStackTrace()
+    }
+}
+
+fun exportFullResultsToExcel(
+    context: android.content.Context,
+    results: List<RaceResult>,
+    selectedDate: String
+) {
+    if (results.isEmpty()) {
+        return
+    }
+    
+    try {
+        // Prepare data for Excel export
+        val exportData = mutableListOf<Array<String>>()
+        
+        // Group results by track for better organization
+        val resultsByTrack = results.groupBy { it.race.venue }
+        
+        resultsByTrack.forEach { (trackName, trackResults) ->
+            trackResults.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+                // Get all horses for this race
+                val allHorses = if (raceResult.allHorses.isNotEmpty()) {
+                    raceResult.allHorses
+                } else {
+                    raceResult.topSelections
+                }
+                
+                allHorses.forEachIndexed { index, horse ->
+                    val position = index + 1
+                    
+                    // Determine bet type for this horse (only top horse gets betting recommendation)
+                    val betType = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                        val topRecommendation = raceResult.bettingRecommendations[0]
+                        when (topRecommendation.betType) {
+                            BetType.SUPER_BET -> "Super Bet"
+                            BetType.BEST_BET -> "Best Bet"
+                            BetType.GOOD_BET -> "Good Bet"
+                            else -> ""
+                        }
+                    } else ""
+                    
+                    val row = arrayOf(
+                        trackName,                                    // Column A: Track
+                        raceResult.race.raceNumber.toString(),       // Column B: Race #
+                        raceResult.race.name,                        // Column C: Race Name
+                        raceResult.race.time,                        // Column D: Time
+                        "${raceResult.race.distance}m",             // Column E: Distance
+                        horse.horse.number.toString(),              // Column F: Horse #
+                        horse.horse.name,                           // Column G: Horse Name
+                        String.format("%.1f", horse.score),        // Column H: Score
+                        position.toString(),                        // Column I: Position
+                        betType,                                    // Column J: Bet Type
+                        horse.horse.jockey,                         // Column K: Jockey
+                        horse.horse.trainer,                        // Column L: Trainer
+                        horse.horse.barrier.toString(),            // Column M: Barrier
+                        "${horse.horse.weight}kg"                  // Column N: Weight
+                    )
+                    exportData.add(row)
+                }
+            }
+        }
+        
+        // Call the ExcelExporter with the prepared data
+        ExcelExporter().exportFullResultsToExcel(context, exportData, selectedDate)
+        
+    } catch (e: Exception) {
+        println("❌ Error exporting full results to Excel: ${e.message}")
         e.printStackTrace()
     }
 }
