@@ -455,11 +455,11 @@ fun shareAllRaceResults(
                     appendLine("🏇 RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
                     appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
                     
-                    // Show only TOP 5 horses to keep size manageable
+                    // Show only TOP 6 horses to keep size manageable
                     val topHorses = if (raceResult.allHorses.isNotEmpty()) {
-                        raceResult.allHorses.take(5)
+                        raceResult.allHorses.take(6)
                     } else {
-                        raceResult.topSelections.take(5)
+                        raceResult.topSelections.take(6)
                     }
                     
                     appendLine("🐎 TOP SELECTIONS (${topHorses.size} of ${if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses.size else raceResult.topSelections.size}):")
