@@ -77,6 +77,7 @@ class ScoringEngine {
                 // Calculate individual law scores based on current spell status
                 val firstUp = if (currentSpellStatus == "1ST_UP") calculateFirstUpScore(horseForm) else 0.0
                 val secondUp = if (currentSpellStatus == "2ND_UP") calculateSecondUpScore(horseForm) else 0.0
+                val secondUpRecentFormBonus = if (currentSpellStatus == "2ND_UP") calculateSecondUpRecentFormBonus(horseForm) else 0.0
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm) // Use historical class performance
                 val trackDistance = calculateTrackDistanceScore(horse, race, horseForm) // Use historical track/distance performance
                 val sectionalTime = if (currentSpellStatus == "2ND_UP") calculateSectionalTimeScore(horseForm) else 0.0 // Only 2nd Up horses get sectional time
@@ -88,14 +89,15 @@ class ScoringEngine {
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm) // Use historical track condition performance
                 
-                // Calculate total score
-                val score = firstUp + secondUp + classSuitability + trackDistance + 
+                // Calculate total score (including second up recent form bonus)
+                val score = firstUp + secondUp + secondUpRecentFormBonus + classSuitability + trackDistance + 
                     sectionalTime + barrier + jockey + trainer + combination + trackCondition
                 
                 // COMPREHENSIVE SPELL HORSE SCORING LOGGING
                 println("🏆 ${horse.name} SPELL HORSE SCORING BREAKDOWN (Status: $currentSpellStatus):")
                 println("   🎯 Law 1 - 1st Up Performance: ${String.format("%.1f", firstUp)} points ${if (currentSpellStatus == "1ST_UP") "(ACTIVE)" else "(inactive)"}")
                 println("   🎯 Law 2 - 2nd Up Performance: ${String.format("%.1f", secondUp)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
+                println("   🎯 Law 2b - 2nd Up Recent Form Bonus: ${String.format("%.1f", secondUpRecentFormBonus)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
                 println("   🎯 Law 3 - Class Suitability: ${String.format("%.1f", classSuitability)} points")
                 println("   🏁 Law 4 - Track/Distance History: ${String.format("%.1f", trackDistance)} points")
                 println("   ⚡ Law 5 - Sectional Time: ${String.format("%.1f", sectionalTime)} points ${if (currentSpellStatus == "2ND_UP") "(from 1st Up race)" else "(no recent data)"}")
@@ -109,7 +111,7 @@ class ScoringEngine {
                 
                 val scoreBreakdown = ScoreBreakdown(
                     type = ScoringType.RETURNING_FROM_SPELL,
-                    recentForm = 0.0, // Not used for spell horses
+                    recentForm = secondUpRecentFormBonus, // Use second up recent form bonus for spell horses
                     firstUp = firstUp,
                     secondUp = secondUp,
                     classSuitability = classSuitability,
@@ -248,6 +250,19 @@ class ScoringEngine {
             println("   Trainer: ${race.trainer}")
         }
         
+        // IMPROVED: Better handling for horses with fewer than 5 races
+        val availableRaces = last5Races.size
+        val scalingFactor = if (availableRaces < 5) {
+            // Scale up scoring for horses with fewer races to be fair
+            5.0 / availableRaces.toDouble()
+        } else {
+            1.0
+        }
+        
+        if (availableRaces < 5) {
+            println("🏇 Law 1: Horse has only $availableRaces recent races (scaling factor: ${String.format("%.2f", scalingFactor)})")
+        }
+        
         last5Races.forEachIndexed { index, race ->
             val recency = 5.0 - index // More recent = higher multiplier
             val multiplier = recency / 5.0
@@ -260,8 +275,15 @@ class ScoringEngine {
                 else -> 0.0
             }
             
-            score += positionPoints
-            println("🏇 Law 1: Race ${index + 1} - Position ${race.position}, Margin ${race.margin}, Points: ${String.format("%.1f", positionPoints)} (multiplier: ${String.format("%.1f", multiplier)})")
+            // Apply scaling factor for horses with fewer races
+            val scaledPoints = positionPoints * scalingFactor
+            score += scaledPoints
+            
+            if (scalingFactor > 1.0) {
+                println("🏇 Law 1: Race ${index + 1} - Position ${race.position}, Base Points: ${String.format("%.1f", positionPoints)}, Scaled Points: ${String.format("%.1f", scaledPoints)} (multiplier: ${String.format("%.1f", multiplier)}, scaling: ${String.format("%.2f", scalingFactor)})")
+            } else {
+                println("🏇 Law 1: Race ${index + 1} - Position ${race.position}, Margin ${race.margin}, Points: ${String.format("%.1f", positionPoints)} (multiplier: ${String.format("%.1f", multiplier)})")
+            }
         }
         
         // SPECIAL BONUS: Last start margin bonus (within 4 lengths of winner)
@@ -391,6 +413,57 @@ class ScoringEngine {
         
         val finalScore = min(score, SECOND_UP_WEIGHT)
         println("🏇 Law 2: 2nd Up performance score: ${String.format("%.1f", finalScore)} (capped at ${SECOND_UP_WEIGHT})")
+        return finalScore
+    }
+    
+    /**
+     * Law 2b: Second Up Recent Form Bonus (up to 8 points)
+     * Awards bonus points for the first-up performance when horse is second up
+     * This fixes the issue where second up horses get 0 for recent form despite good first-up runs
+     */
+    private fun calculateSecondUpRecentFormBonus(horseForm: HorseForm): Double {
+        println("🔍 Law 2b: Starting Second Up Recent Form Bonus calculation")
+        
+        if (horseForm.last5Races.isEmpty()) {
+            println("🏇 Law 2b: No recent races found - returning 0.0")
+            return 0.0
+        }
+        
+        // For second up horses, we specifically look at their first-up run (most recent race)
+        val firstUpRun = horseForm.last5Races.firstOrNull()
+        if (firstUpRun == null) {
+            println("🏇 Law 2b: No first-up run data available - returning 0.0")
+            return 0.0
+        }
+        
+        var score = 0.0
+        
+        println("🏇 Law 2b: Analyzing first-up run - Position: ${firstUpRun.position}, Margin: ${firstUpRun.margin}")
+        
+        // Award bonus points based on first-up performance
+        val positionBonus = when (firstUpRun.position) {
+            1 -> 8.0 // 1st place first up = 8 points
+            2 -> 5.0 // 2nd place first up = 5 points  
+            3 -> 3.0 // 3rd place first up = 3 points
+            4 -> 2.0 // 4th place first up = 2 points
+            else -> 0.0
+        }
+        
+        score += positionBonus
+        if (positionBonus > 0) {
+            println("🏇 Law 2b: +${String.format("%.1f", positionBonus)} points for ${firstUpRun.position}${getPositionSuffix(firstUpRun.position)} place first-up")
+        }
+        
+        // Additional bonus for being within 4 lengths of winner (regardless of position)
+        firstUpRun.margin?.let { margin ->
+            if (margin <= 4.0 && firstUpRun.position > 4) {
+                score += 1.0 // Small bonus for competitive first-up run
+                println("🏇 Law 2b: +1.0 points for being within ${margin} lengths first-up (competitive effort)")
+            }
+        }
+        
+        val finalScore = min(score, 8.0) // Cap at 8 points (same as other spell horse laws)
+        println("🏇 Law 2b: Second Up Recent Form Bonus: ${String.format("%.1f", finalScore)} points (capped at 8.0)")
         return finalScore
     }
     
