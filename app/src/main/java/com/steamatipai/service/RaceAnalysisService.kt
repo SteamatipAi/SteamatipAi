@@ -21,7 +21,7 @@ class RaceAnalysisService(
         date: Date,
         includeDetailedForm: Boolean = true
     ): AnalysisResult {
-        println("🚀 STARTING RACE ANALYSIS")
+        println("🚀 STARTING PARALLEL RACE ANALYSIS")
         println("📅 Date: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)}")
         println("🏁 Tracks to analyze: ${tracks.size}")
         tracks.forEach { track ->
@@ -29,53 +29,73 @@ class RaceAnalysisService(
         }
         
         val startTime = System.currentTimeMillis()
-        val allResults = mutableListOf<RaceResult>()
         
         try {
-            // Analyse each track
-            tracks.forEach { track ->
-                println("\n🏁 ANALYZING TRACK: ${track.name} (${track.state})")
+            // 🚀 PERFORMANCE OPTIMIZATION: Cache premiership data by state to avoid duplicate fetches
+            println("\n📊 Pre-fetching premiership data for all states...")
+            val statePremierships = coroutineScope {
+                val uniqueStates = tracks.map { it.state }.distinct()
+                println("   States to fetch: ${uniqueStates.joinToString(", ")}")
                 
-                // Fetch premiership data for this track's state
-                val jockeyRankings = scrapingService.fetchJockeyPremiership(track.state)
-                val trainerRankings = scrapingService.fetchTrainerPremiership(track.state)
-                
-                println("👥 Jockey rankings for ${track.state}: ${jockeyRankings.size}")
-                println("👨‍🏫 Trainer rankings for ${track.state}: ${trainerRankings.size}")
-                
-                // Show top 5 jockeys and trainers for debugging
-                jockeyRankings.take(5).forEachIndexed { index, jockey ->
-                    println("   Jockey ${index + 1}: ${jockey.name} (${jockey.wins} wins)")
-                }
-                trainerRankings.take(5).forEachIndexed { index, trainer ->
-                    println("   Trainer ${index + 1}: ${trainer.name} (${trainer.wins} wins)")
-                }
-                
-                try {
-                    val races = scrapingService.scrapeTrackRaces(track, date)
-                    println("📊 Found ${races.size} races for ${track.name}")
-                    
-                    races.forEach { race ->
-                        println("   Race ${race.raceNumber}: ${race.name} (${race.horses.size} horses) - ID: ${race.id}")
+                val premierships = uniqueStates.map { state ->
+                    async {
+                        println("   🔍 Fetching premiership data for $state...")
+                        val jockeyRankings = scrapingService.fetchJockeyPremiership(state)
+                        val trainerRankings = scrapingService.fetchTrainerPremiership(state)
+                        println("   ✅ $state: ${jockeyRankings.size} jockeys, ${trainerRankings.size} trainers")
+                        state to Pair(jockeyRankings, trainerRankings)
                     }
-                    
-                    // Analyse each race
-                    races.forEach { race ->
-                        println("\n🔍 Starting analysis of Race ${race.raceNumber} (ID: ${race.id})")
-                        val raceResult = analyzeRace(race, track, jockeyRankings, trainerRankings, includeDetailedForm)
-                        allResults.add(raceResult)
+                }.awaitAll().toMap()
+                
+                println("📊 Premiership data cached for ${premierships.size} states")
+                premierships
+            }
+            
+            // 🚀 PERFORMANCE OPTIMIZATION: Process all tracks in parallel
+            println("\n🏁 STARTING PARALLEL TRACK ANALYSIS...")
+            val allResults = coroutineScope {
+                tracks.map { track ->
+                    async {
+                        println("\n🏁 ANALYZING TRACK: ${track.name} (${track.state})")
                         
-                        println("✅ Race ${race.raceNumber} analysis complete")
-                        println("   Top 5 selections:")
-                        raceResult.topSelections.take(5).forEachIndexed { index, scoredHorse ->
-                            println("     ${index + 1}. ${scoredHorse.horse.name}: ${String.format("%.1f", scoredHorse.score)} points")
+                        // Get cached premiership data for this track's state
+                        val (jockeyRankings, trainerRankings) = statePremierships[track.state] 
+                            ?: throw IllegalStateException("No premiership data found for state: ${track.state}")
+                        
+                        println("👥 Using cached rankings for ${track.state}: ${jockeyRankings.size} jockeys, ${trainerRankings.size} trainers")
+                        
+                        try {
+                            val races = scrapingService.scrapeTrackRaces(track, date)
+                            println("📊 Found ${races.size} races for ${track.name}")
+                            
+                            races.forEach { race ->
+                                println("   Race ${race.raceNumber}: ${race.name} (${race.horses.size} horses) - ID: ${race.id}")
+                            }
+                            
+                            // Analyse each race for this track
+                            val trackResults = mutableListOf<RaceResult>()
+                            races.forEach { race ->
+                                println("\n🔍 Starting analysis of Race ${race.raceNumber} (ID: ${race.id}) at ${track.name}")
+                                val raceResult = analyzeRace(race, track, jockeyRankings, trainerRankings, includeDetailedForm)
+                                trackResults.add(raceResult)
+                                
+                                println("✅ Race ${race.raceNumber} analysis complete at ${track.name}")
+                                println("   Top 5 selections:")
+                                raceResult.topSelections.take(5).forEachIndexed { index, scoredHorse ->
+                                    println("     ${index + 1}. ${scoredHorse.horse.name}: ${String.format("%.1f", scoredHorse.score)} points")
+                                }
+                            }
+                            
+                            println("🏆 Track ${track.name} complete: ${trackResults.size} races analyzed")
+                            trackResults
+                            
+                        } catch (e: Exception) {
+                            println("❌ Error analyzing track ${track.name}: ${e.message}")
+                            e.printStackTrace()
+                            emptyList<RaceResult>()
                         }
                     }
-                    
-                } catch (e: Exception) {
-                    println("❌ Error analyzing track ${track.name}: ${e.message}")
-                    e.printStackTrace()
-                }
+                }.awaitAll().flatten()
             }
             
             val processingTime = System.currentTimeMillis() - startTime
