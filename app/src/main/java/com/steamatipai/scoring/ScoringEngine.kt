@@ -22,6 +22,14 @@ class ScoringEngine {
         const val TRACK_CONDITION_WEIGHT = 8.0
         
         const val SPELL_THRESHOLD_WEEKS = 12
+        
+        // CHAMPION JOCKEYS: Always receive maximum points regardless of current premiership standing
+        val CHAMPION_JOCKEYS = listOf(
+            "Craig Williams",
+            "C Williams", 
+            "CRAIG WILLIAMS",
+            "C.Williams"
+        )
     }
     
     // Store combination data for lookup
@@ -648,6 +656,21 @@ class ScoringEngine {
      */
     private fun calculateJockeyScore(horse: Horse, jockeyRankings: List<JockeyPremiership>): Double {
         println("🏇 DEBUG: Looking for jockey '${horse.jockey}' in ${jockeyRankings.size} rankings")
+        
+        // CHAMPION JOCKEY CHECK: Check if this is a champion jockey first
+        val isChampionJockey = CHAMPION_JOCKEYS.any { championName ->
+            horse.jockey.equals(championName, ignoreCase = true) || 
+            horse.jockey.contains(championName, ignoreCase = true) ||
+            championName.contains(horse.jockey, ignoreCase = true)
+        }
+        
+        if (isChampionJockey) {
+            println("🏆 CHAMPION JOCKEY DETECTED: '${horse.jockey}' receives maximum points!")
+            println("🏇 DEBUG: Champion jockey score: $JOCKEY_WEIGHT points (maximum)")
+            return JOCKEY_WEIGHT
+        }
+        
+        // Regular premiership-based scoring
         val jockeyRank = getJockeyRank(horse.jockey, jockeyRankings)
         println("🏇 DEBUG: Jockey '${horse.jockey}' rank: $jockeyRank (max rank: ${jockeyRankings.maxOfOrNull { it.rank } ?: 0})")
         
@@ -658,7 +681,7 @@ class ScoringEngine {
             else -> 0.0
         }
         
-        println("🏇 DEBUG: Jockey score for '${horse.jockey}': $score points")
+        println("🏇 DEBUG: Regular jockey score for '${horse.jockey}': $score points")
         return score
     }
     
