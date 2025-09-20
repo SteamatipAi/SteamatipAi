@@ -103,17 +103,18 @@ class ScoringEngine {
                 
                 // COMPREHENSIVE SPELL HORSE SCORING LOGGING
                 println("🏆 ${horse.name} SPELL HORSE SCORING BREAKDOWN (Status: $currentSpellStatus):")
-                println("   🎯 Law 1 - 1st Up Performance: ${String.format("%.1f", firstUp)} points ${if (currentSpellStatus == "1ST_UP") "(ACTIVE)" else "(inactive)"}")
-                println("   🎯 Law 2 - 2nd Up Performance: ${String.format("%.1f", secondUp)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
-                println("   🎯 Law 2b - 2nd Up Recent Form Bonus: ${String.format("%.1f", secondUpRecentFormBonus)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
-                println("   🎯 Law 3 - Class Suitability: ${String.format("%.1f", classSuitability)} points")
-                println("   🏁 Law 4 - Track/Distance History: ${String.format("%.1f", trackDistance)} points")
-                println("   ⚡ Law 5 - Sectional Time: ${String.format("%.1f", sectionalTime)} points ${if (currentSpellStatus == "2ND_UP") "(from 1st Up race)" else "(no recent data)"}")
-                println("   🚪 Law 6 - Barrier: ${String.format("%.1f", barrier)} points")
-                println("   🏇 Law 7 - Jockey: ${String.format("%.1f", jockey)} points")
-                println("   👨‍🏫 Law 8 - Trainer: ${String.format("%.1f", trainer)} points")
-                println("   🤝 Law 9 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
-                println("   🌦️ Law 10 - Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   📊 Law 1 - Recent Form: ${String.format("%.1f", 0.0)} points (not used for spell horses)")
+                println("   🎯 Law 2 - Class Suitability: ${String.format("%.1f", classSuitability)} points")
+                println("   🏁 Law 3 - Track/Distance History: ${String.format("%.1f", trackDistance)} points")
+                println("   ⚡ Law 4 - Sectional Time: ${String.format("%.1f", sectionalTime)} points ${if (currentSpellStatus == "2ND_UP") "(from 1st Up race)" else "(no recent data)"}")
+                println("   🚪 Law 5 - Barrier: ${String.format("%.1f", barrier)} points")
+                println("   🏇 Law 6 - Jockey: ${String.format("%.1f", jockey)} points")
+                println("   👨‍🏫 Law 7 - Trainer: ${String.format("%.1f", trainer)} points")
+                println("   🤝 Law 8 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
+                println("   🌦️ Law 9 - Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   🎯 Law 10 - 1st Up Performance: ${String.format("%.1f", firstUp)} points ${if (currentSpellStatus == "1ST_UP") "(ACTIVE)" else "(inactive)"}")
+                println("   🎯 Law 11 - 2nd Up Performance: ${String.format("%.1f", secondUp)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
+                println("   🎯 Law 12 - 2nd Up Recent Form Bonus: ${String.format("%.1f", secondUpRecentFormBonus)} points ${if (currentSpellStatus == "2ND_UP") "(ACTIVE)" else "(inactive)"}")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", score)} points")
                 println("   ─".repeat(50))
                 
@@ -193,7 +194,7 @@ class ScoringEngine {
                     sectionalTime + barrier + jockey + trainer + combination + trackCondition
                 
                 // COMPREHENSIVE SCORING LOGGING
-                println("🏆 ${horse.name} SCORING BREAKDOWN:")
+                println("🏆 ${horse.name} NORMAL HORSE SCORING BREAKDOWN:")
                 println("   📊 Law 1 - Recent Form: ${String.format("%.1f", recentForm)} points")
                 println("   🎯 Law 2 - Class Suitability: ${String.format("%.1f", classSuitability)} points")
                 println("   🏁 Law 3 - Track/Distance History: ${String.format("%.1f", trackDistance)} points")
@@ -203,6 +204,9 @@ class ScoringEngine {
                 println("   👨‍🏫 Law 7 - Trainer: ${String.format("%.1f", trainer)} points")
                 println("   🤝 Law 8 - Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
                 println("   🌦️ Law 9 - Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   🎯 Law 10 - 1st Up Performance: ${String.format("%.1f", 0.0)} points (not used for normal horses)")
+                println("   🎯 Law 11 - 2nd Up Performance: ${String.format("%.1f", 0.0)} points (not used for normal horses)")
+                println("   🎯 Law 12 - 2nd Up Recent Form Bonus: ${String.format("%.1f", 0.0)} points (not used for normal horses)")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", totalScore)} points")
                 println("   ─".repeat(50))
                 
