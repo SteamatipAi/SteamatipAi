@@ -590,70 +590,103 @@ fun shareResults(
         return
     }
     
-    val shareText = buildString {
-        appendLine("🏇 STEAMA TIP AI - RACE ANALYSIS RESULTS")
-        appendLine("═══════════════════════════════════════════")
-        appendLine("📅 Date: $selectedDate")
-        appendLine("🏁 Tracks: ${selectedTracks.joinToString(", ")}")
-        appendLine("⏱️ Analysis Time: ${processingTime}ms")
-        appendLine()
-        
-        results.sortedBy { it.race.raceNumber }.forEach { raceResult ->
-            appendLine("┌─────────────────────────────────────────┐")
-            appendLine("│ RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
-            appendLine("│ 📍 ${raceResult.race.venue} • ⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
-            appendLine("│ TOP 5 SELECTIONS:")
-            appendLine("└─────────────────────────────────────────┘")
+    try {
+        val shareText = buildString {
+            appendLine("🏇 STEAMA TIP AI - RACE ANALYSIS RESULTS")
+            appendLine("═══════════════════════════════════════════")
+            appendLine("📅 Date: $selectedDate")
+            appendLine("🏁 Tracks: ${selectedTracks.size} selected")
+            appendLine("⏱️ Analysis Time: ${processingTime}ms")
             appendLine()
             
-            raceResult.topSelections.take(5).forEachIndexed { index, horse ->
-                // Determine if this is the top horse with special betting recommendation
-                val isTopHorseWithBettingRecommendation = index == 0 && raceResult.bettingRecommendations.isNotEmpty()
-                val topRecommendation = if (isTopHorseWithBettingRecommendation) raceResult.bettingRecommendations[0] else null
-                val hasSpecialBetting = topRecommendation?.betType != null && topRecommendation.betType != BetType.CONSIDER
-                
-                val position = index + 1
-                
-                // Add betting indicator for top horse
-                val bettingIndicator = if (hasSpecialBetting) {
-                    when (topRecommendation!!.betType) {
-                        BetType.SUPER_BET -> "🟢 ★ SUPER BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
-                        BetType.BEST_BET -> "🔵 ★ BEST BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
-                        BetType.GOOD_BET -> "🟣 ★ GOOD BET ★ (${String.format("%.1f", topRecommendation.pointGap)} pts clear)"
-                        else -> ""
-                    }
-                } else ""
-                
-                appendLine("${position}. #${horse.horse.number} ${horse.horse.name}")
-                appendLine("   Score: ${String.format("%.1f", horse.score)}")
-                if (bettingIndicator.isNotEmpty()) {
-                    appendLine("   $bettingIndicator")
-                }
-                appendLine("   Jockey: ${horse.horse.jockey}")
-                appendLine("   Trainer: ${horse.horse.trainer}")
-                    appendLine("   Barrier: ${horse.horse.barrier} • Weight: ${horse.horse.weight}kg")
-                if (horse.isStandout) {
-                    appendLine("   ⭐ STANDOUT SELECTION")
-                }
+            // Group by track for better organization
+            val resultsByTrack = results.groupBy { it.race.venue }
+            
+            resultsByTrack.forEach { (trackName, trackResults) ->
+                appendLine("🏟️ $trackName".uppercase())
+                appendLine("▔".repeat(30))
                 appendLine()
+                
+                trackResults.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+                    // Make race numbers bigger and bolder to stand out
+                    appendLine("🏇 ═══ RACE ${raceResult.race.raceNumber} ═══ ${raceResult.race.name}")
+                    appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
+                    appendLine()
+                    
+                    // Show top 6 horses to keep size manageable
+                    val topHorses = if (raceResult.allHorses.isNotEmpty()) {
+                        raceResult.allHorses.take(6)
+                    } else {
+                        raceResult.topSelections.take(6)
+                    }
+                    
+                    appendLine("🐎 TOP SELECTIONS (${topHorses.size} of ${if (raceResult.allHorses.isNotEmpty()) raceResult.allHorses.size else raceResult.topSelections.size}):")
+                    
+                    topHorses.forEachIndexed { index, horse ->
+                        val position = index + 1
+                        
+                        // Add betting indicator for top horse if applicable
+                        val bettingIndicator = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                            val topRecommendation = raceResult.bettingRecommendations[0]
+                            when (topRecommendation.betType) {
+                                BetType.SUPER_BET -> " 🟢"
+                                BetType.BEST_BET -> " 🔵"
+                                BetType.GOOD_BET -> " 🟣"
+                                else -> ""
+                            }
+                        } else ""
+                        
+                        appendLine("${position}. #${horse.horse.number} ${horse.horse.name}$bettingIndicator")
+                        appendLine("   💯 ${String.format("%.1f", horse.score)} • J: ${horse.horse.jockey}")
+                    }
+                    
+                    appendLine("═".repeat(30))
+                    appendLine()
+                }
             }
-            appendLine("═══════════════════════════════════════════")
-            appendLine()
+            
+            appendLine("📱 Generated by SteamaTip AI")
         }
         
-        appendLine("Generated by SteamaTip AI")
-        appendLine("Advanced horse racing analysis with real-time data")
+        // Check text size and truncate if necessary (Android has ~1MB limit for Intent extras)
+        val finalText = if (shareText.length > 100000) {
+            shareText.take(95000) + "\n\n... (Content truncated for sharing)\n📱 Generated by SteamaTip AI"
+        } else {
+            shareText
+        }
+        
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, finalText)
+            putExtra(Intent.EXTRA_SUBJECT, "Race Analysis Results - $selectedDate")
+            // Add flags to prevent issues
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        
+        // Use try-catch for the actual share action
+        try {
+            val chooserIntent = Intent.createChooser(shareIntent, "Share Race Analysis Results")
+            context.startActivity(chooserIntent)
+        } catch (e: Exception) {
+            println("❌ Error sharing results: ${e.message}")
+            // Fallback: try with even shorter text
+            val shortText = "🏇 STEAMA TIP AI - RACE ANALYSIS\n📅 $selectedDate\n🏁 ${results.size} races analyzed\n\n📱 Full results available in app"
+            val fallbackIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, shortText)
+                putExtra(Intent.EXTRA_SUBJECT, "Race Analysis - $selectedDate")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val fallbackChooser = Intent.createChooser(fallbackIntent, "Share Race Analysis")
+            context.startActivity(fallbackChooser)
+        }
+        
+    } catch (e: Exception) {
+        println("❌ Critical error in ResultsScreen share function: ${e.message}")
+        e.printStackTrace()
     }
-    
-    val shareIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, shareText)
-        putExtra(Intent.EXTRA_SUBJECT, "Race Analysis Results - $selectedDate")
-    }
-    
-    val chooserIntent = Intent.createChooser(shareIntent, "Share Race Analysis Results")
-    context.startActivity(chooserIntent)
 }
 
 

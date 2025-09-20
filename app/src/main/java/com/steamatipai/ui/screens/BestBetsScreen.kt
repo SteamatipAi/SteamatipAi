@@ -513,13 +513,13 @@ fun shareBestBets(
                     } else BetType.CONSIDER
                     
                     val betTypeText = when (betType) {
-                        BetType.SUPER_BET -> "⭐ SUPER BET ⭐"
-                        BetType.BEST_BET -> "🔵 BEST BET"
-                        BetType.GOOD_BET -> "🟣 GOOD BET"
+                        BetType.SUPER_BET -> "🟢🟢 SUPER BET 🟢🟢"
+                        BetType.BEST_BET -> "🔵🔵 BEST BET 🔵🔵"
+                        BetType.GOOD_BET -> "🟣🟣 GOOD BET 🟣🟣"
                         else -> "CONSIDER"
                     }
                     
-                    appendLine("🏇 Race ${raceResult.race.raceNumber}: ${raceResult.race.name}")
+                    appendLine("🏇 ═══ RACE ${raceResult.race.raceNumber} ═══ ${raceResult.race.name}")
                     appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
                     appendLine()
                     appendLine("$betTypeText")

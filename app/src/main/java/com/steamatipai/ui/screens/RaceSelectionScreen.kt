@@ -452,7 +452,8 @@ fun shareAllRaceResults(
                 appendLine()
                 
                 races.sortedBy { it.race.raceNumber }.forEach { raceResult ->
-                    appendLine("🏇 RACE ${raceResult.race.raceNumber}: ${raceResult.race.name}")
+                    // Make race numbers bigger and bolder to stand out
+                    appendLine("🏇 ═══ RACE ${raceResult.race.raceNumber} ═══ ${raceResult.race.name}")
                     appendLine("⏰ ${raceResult.race.time} • 📏 ${raceResult.race.distance}m")
                     
                     // Show only TOP 6 horses to keep size manageable
@@ -471,7 +472,7 @@ fun shareAllRaceResults(
                         val bettingIndicator = if (index == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
                             val topRecommendation = raceResult.bettingRecommendations[0]
                             when (topRecommendation.betType) {
-                                com.steamatipai.data.models.BetType.SUPER_BET -> " ⭐"
+                                com.steamatipai.data.models.BetType.SUPER_BET -> " 🟢"
                                 com.steamatipai.data.models.BetType.BEST_BET -> " 🔵"
                                 com.steamatipai.data.models.BetType.GOOD_BET -> " 🟣"
                                 else -> ""
