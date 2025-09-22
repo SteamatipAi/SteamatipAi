@@ -416,16 +416,8 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
             action = Intent.ACTION_SEND
             type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             putExtra(Intent.EXTRA_STREAM, uri)
-            
-            val sizeWarning = if (isLargeFile) {
-                "\n⚠️ FILE SIZE: ${String.format("%.1f", fileSizeMB)}MB - May be too large for some email providers\n" +
-                "💡 TIP: Try sharing via cloud storage (Google Drive, OneDrive) if email fails\n\n"
-            } else {
-                ""
-            }
-            
             putExtra(Intent.EXTRA_SUBJECT, "SteamaTip AI - Complete Professional Race Analysis - $selectedDate")
-            putExtra(Intent.EXTRA_TEXT, "${sizeWarning}Complete Professional Excel Analysis with ALL formatting automatically applied:\n" +
+            putExtra(Intent.EXTRA_TEXT, "Complete Professional Excel Analysis with ALL formatting automatically applied:\n" +
                     "✅ All rows with filtering enabled\n" +
                     "✅ Track names auto-width + color coded\n" +
                     "✅ Race numbers centered\n" +
@@ -437,7 +429,8 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
                     "✅ Jockey/Trainer names auto-width\n" +
                     "✅ Barrier/Weight centered\n" +
                     "✅ True Excel .xlsx format with ALL formatting automatically applied\n" +
-                    "✅ Complete field analysis with ALL horses included")
+                    "✅ Complete field analysis with ALL horses included\n" +
+                    "📊 File size: ${String.format("%.0f", fileSizeMB * 1024)} KB")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -446,7 +439,29 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
             println("⚠️ Large Excel file (${String.format("%.1f", fileSizeMB)}MB) - may have email attachment issues")
         }
         
-        context.startActivity(Intent.createChooser(shareIntent, "Share Professional Complete Analysis"))
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Share Professional Complete Analysis"))
+            println("✅ Excel file shared successfully (${String.format("%.0f", fileSizeMB * 1024)} KB)")
+        } catch (e: Exception) {
+            println("❌ Primary Excel sharing failed: ${e.message}")
+            // Fallback: Try with generic application type
+            try {
+                val fallbackIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    type = "application/octet-stream" // Generic binary file type
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "SteamaTip AI - Complete Race Analysis Excel - $selectedDate")
+                    putExtra(Intent.EXTRA_TEXT, "Professional Excel Analysis (${String.format("%.0f", fileSizeMB * 1024)} KB)\n\nComplete race analysis with professional formatting.")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(Intent.createChooser(fallbackIntent, "Share Excel File"))
+                println("✅ Excel file shared via fallback method")
+            } catch (e2: Exception) {
+                println("❌ All Excel sharing methods failed: ${e2.message}")
+                e2.printStackTrace()
+            }
+        }
         
     } catch (e: Exception) {
         println("❌ Error sharing Full Results Excel file: ${e.message}")
