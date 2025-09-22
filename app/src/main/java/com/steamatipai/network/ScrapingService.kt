@@ -1435,22 +1435,51 @@ class ScrapingService {
             var jockey = ""
             var trainer = ""
             
-            // Extract position from "7th of 11" format
-            val positionMatch = Regex("(\\d+)(?:st|nd|rd|th)\\s+of\\s+\\d+").find(allText)
-            if (positionMatch != null) {
-                position = positionMatch.groupValues[1].toIntOrNull() ?: 0
-                println("✅ Found position: $position")
+            // Extract position with multiple format support
+            // Pattern 1: "7th of 11" format (original)
+            val positionMatch1 = Regex("(\\d+)(?:st|nd|rd|th)\\s+of\\s+\\d+").find(allText)
+            if (positionMatch1 != null) {
+                position = positionMatch1.groupValues[1].toIntOrNull() ?: 0
+                println("✅ Found position (format 1): $position")
             } else {
-                // Fallback: try to find position without "of X" format
-                val simplePositionMatch = Regex("(\\d+)(?:st|nd|rd|th)").find(allText)
-                if (simplePositionMatch != null) {
-                    position = simplePositionMatch.groupValues[1].toIntOrNull() ?: 0
-                    println("✅ Found position (fallback): $position")
+                // Pattern 2: "7/11" or "7 of 11" format
+                val positionMatch2 = Regex("(\\d+)\\s*(?:/|of)\\s*\\d+").find(allText)
+                if (positionMatch2 != null) {
+                    position = positionMatch2.groupValues[1].toIntOrNull() ?: 0
+                    println("✅ Found position (format 2): $position")
+                } else {
+                    // Pattern 3: "7th/11" format
+                    val positionMatch3 = Regex("(\\d+)(?:st|nd|rd|th)\\s*/\\s*\\d+").find(allText)
+                    if (positionMatch3 != null) {
+                        position = positionMatch3.groupValues[1].toIntOrNull() ?: 0
+                        println("✅ Found position (format 3): $position")
+                    } else {
+                        // Pattern 4: Just "7th" format (original fallback)
+                        val positionMatch4 = Regex("(\\d+)(?:st|nd|rd|th)").find(allText)
+                        if (positionMatch4 != null) {
+                            position = positionMatch4.groupValues[1].toIntOrNull() ?: 0
+                            println("✅ Found position (format 4): $position")
+                        } else {
+                            // Pattern 5: Look for standalone position numbers at start of text
+                            // This catches cases where position might be just "7" at the beginning
+                            val positionMatch5 = Regex("^(\\d{1,2})\\s").find(allText.trim())
+                            if (positionMatch5 != null) {
+                                val potentialPosition = positionMatch5.groupValues[1].toIntOrNull() ?: 0
+                                // Only accept if it's a reasonable position (1-20)
+                                if (potentialPosition in 1..20) {
+                                    position = potentialPosition
+                                    println("✅ Found position (format 5): $position")
+                                }
+                            }
+                        }
+                    }
                 }
             }
             
             if (position == 0) {
                 println("⚠️ Could not extract position, skipping race result")
+                println("🔍 DEBUG: Text that failed to parse position: '${allText.take(200)}...'")
+                println("🔍 DEBUG: Attempted patterns: '7th of 11', '7/11', '7 of 11', '7th/11', '7th', '7 '")
                 return null
             }
             
