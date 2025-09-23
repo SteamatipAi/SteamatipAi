@@ -398,20 +398,21 @@ private fun TrackItem(
             // Selection indicator
             Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .padding(4.dp),
+                    .size(20.dp)
+                    .padding(end = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = Color(0xFFFFD700) // Gold color
+                        tint = Color(0xFFFFD700), // Gold color
+                        modifier = Modifier.size(16.dp)
                     )
                 } else {
                     Text(
                         text = "○",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFFFFD700) // Gold color
                     )
                 }
@@ -421,7 +422,7 @@ private fun TrackItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = track.name,
