@@ -8,7 +8,7 @@ import kotlin.math.min
 class ScoringEngine {
     
     companion object {
-        const val TOTAL_POINTS = 116.0  // Updated for 10 laws (spell horses)
+        const val TOTAL_POINTS = 127.0  // Updated for 12 laws (normal horses: 11 points added)
         const val RECENT_FORM_WEIGHT = 25.0
         const val FIRST_UP_WEIGHT = 8.0  // NEW LAW 1 for spell horses
         const val SECOND_UP_WEIGHT = 8.0 // NEW LAW 2 for spell horses
@@ -20,6 +20,8 @@ class ScoringEngine {
         const val TRAINER_WEIGHT = 8.0
         const val COMBINATION_WEIGHT = 8.0
         const val TRACK_CONDITION_WEIGHT = 8.0
+        const val WEIGHT_ADVANTAGE_WEIGHT = 8.0  // NEW LAW 11
+        const val FRESHNESS_WEIGHT = 3.0         // NEW LAW 12
         
         const val SPELL_THRESHOLD_WEEKS = 12
         
@@ -89,17 +91,20 @@ class ScoringEngine {
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm) // Use historical class performance
                 val trackDistance = calculateTrackDistanceScore(horse, race, horseForm) // Use historical track/distance performance
                 val sectionalTime = if (currentSpellStatus == "2ND_UP") calculateSectionalTimeScore(horseForm) else 0.0 // Only 2nd Up horses get sectional time
-                val barrier = calculateBarrierScore(horse)
+                val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm) // Use historical relationship
                 val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm) // Use historical track condition performance
+                val weightAdvantage = calculateWeightAdvantageScore(horse, race.horses) // NEW LAW 11
+                val freshness = 0.0 // Spell horses don't get freshness bonus (they're already fresh from spell)
                 
-                // Calculate total score (including second up recent form bonus)
+                // Calculate total score (including second up recent form bonus and new laws)
                 val score = firstUp + secondUp + secondUpRecentFormBonus + classSuitability + trackDistance + 
-                    sectionalTime + barrier + jockey + trainer + combination + trackCondition
+                    sectionalTime + barrier + jockey + trainer + combination + trackCondition +
+                    weightAdvantage + freshness
                 
                 // COMPREHENSIVE SPELL HORSE SCORING LOGGING
                 println("🏆 ${horse.name} SPELL HORSE SCORING BREAKDOWN (Status: $currentSpellStatus):")
@@ -114,6 +119,8 @@ class ScoringEngine {
                 println("   👨‍🏫 L9: Trainer: ${String.format("%.1f", trainer)} points")
                 println("   🤝 L10: Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
                 println("   🌦️ L11: Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   ⚖️ L12: Weight Advantage: ${String.format("%.1f", weightAdvantage)} points")
+                println("   📅 L13: Freshness: ${String.format("%.1f", freshness)} points (spell horses exempt)")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", score)} points")
                 println("   ─".repeat(50))
                 
@@ -130,6 +137,8 @@ class ScoringEngine {
                     trainer = trainer,
                     combination = combination,
                     trackCondition = trackCondition,
+                    weightAdvantage = weightAdvantage,  // NEW LAW 11
+                    freshness = freshness,              // NEW LAW 12 (0 for spell horses)
                     totalScore = score
                 )
                 return ScoredHorse(
@@ -147,13 +156,15 @@ class ScoringEngine {
                 val classSuitability = 0.0 // First-up horses get 0 for class suitability
                 val trackDistance = 0.0 // First-up horses get 0 for track/distance history
                 val sectionalTime = calculateSectionalTimeScore(horseForm)
-                val barrier = calculateBarrierScore(horse)
+                val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = 0.0 // First-up horses get 0 for jockey-horse relationship
                 val jockeyTrainerPartnership = 0.0 // First-up horses get 0 for jockey-trainer partnership
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = 0.0 // First-up horses get 0 for track condition history
+                val weightAdvantage = calculateWeightAdvantageScore(horse, race.horses) // NEW LAW 11
+                val freshness = 0.0 // First starters don't get freshness bonus (no race history)
                 
                 val scoreBreakdown = ScoreBreakdown(
                     type = ScoringType.FIRST_UP,
@@ -166,6 +177,8 @@ class ScoringEngine {
                     trainer = trainer,
                     combination = combination,
                     trackCondition = trackCondition,
+                    weightAdvantage = weightAdvantage,  // NEW LAW 11
+                    freshness = freshness,              // NEW LAW 12 (0 for first starters)
                     totalScore = score
                 )
                 return ScoredHorse(
@@ -175,22 +188,25 @@ class ScoringEngine {
                 )
             }
             else -> {
-                println("🏆 ${horse.name} - USING NORMAL HORSE SCORING (all 9 laws)")
+                println("🏆 ${horse.name} - USING NORMAL HORSE SCORING (all 12 laws)")
                 // Apply all normal laws
                 val recentForm = calculateRecentFormScore(horseForm)
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm)
                 val trackDistance = calculateTrackDistanceScore(horse, race, horseForm)
                 val sectionalTime = calculateSectionalTimeScore(horseForm)
-                val barrier = calculateBarrierScore(horse)
+                val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
                 val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
                 val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
-                val trackCondition = calculateTrackConditionScore(horse, race, horseForm)  // NEW LAW 9
+                val trackCondition = calculateTrackConditionScore(horse, race, horseForm)
+                val weightAdvantage = calculateWeightAdvantageScore(horse, race.horses) // NEW LAW 11
+                val freshness = calculateFreshnessScore(horseForm, race.date) // NEW LAW 12
                 
                 val totalScore = recentForm + classSuitability + trackDistance + 
-                    sectionalTime + barrier + jockey + trainer + combination + trackCondition
+                    sectionalTime + barrier + jockey + trainer + combination + trackCondition +
+                    weightAdvantage + freshness
                 
                 // COMPREHENSIVE SCORING LOGGING
                 println("🏆 ${horse.name} NORMAL HORSE SCORING BREAKDOWN:")
@@ -205,6 +221,8 @@ class ScoringEngine {
                 println("   👨‍🏫 L9: Trainer: ${String.format("%.1f", trainer)} points")
                 println("   🤝 L10: Jockey-Horse Relationship: ${String.format("%.1f", jockeyHorseRelationship)} points")
                 println("   🌦️ L11: Track Condition: ${String.format("%.1f", trackCondition)} points")
+                println("   ⚖️ L12: Weight Advantage: ${String.format("%.1f", weightAdvantage)} points")
+                println("   📅 L13: Freshness: ${String.format("%.1f", freshness)} points")
                 println("   💯 TOTAL SCORE: ${String.format("%.1f", totalScore)} points")
                 println("   ─".repeat(50))
                 
@@ -218,7 +236,9 @@ class ScoringEngine {
                     jockey = jockey,
                     trainer = trainer,
                     combination = combination,
-                    trackCondition = trackCondition,  // NEW LAW 9
+                    trackCondition = trackCondition,
+                    weightAdvantage = weightAdvantage,  // NEW LAW 11
+                    freshness = freshness,              // NEW LAW 12
                     totalScore = totalScore
                 )
                 
@@ -494,6 +514,14 @@ class ScoringEngine {
             when (classComparison) {
                 ClassComparison.DROPPING -> {
                     score += 15.0 // Dropping in class bonus
+                    
+                    // ENHANCED: Check for declining horse pattern (repeatedly dropping class)
+                    val consecutiveClassDrops = countConsecutiveClassDrops(horseForm.last5Races)
+                    if (consecutiveClassDrops >= 3) {
+                        score -= 5.0 // Warning: this horse is in decline, not just tactically dropping
+                        println("⚠️ ${horse.name} - Declining pattern detected (${consecutiveClassDrops} consecutive class drops), penalty applied")
+                    }
+                    
                     // Extra bonus if performed well last start
                     if (horseForm.last5Races.isNotEmpty() && horseForm.last5Races[0].position <= 3) {
                         score += 5.0 // Class drop + good last start
@@ -524,8 +552,8 @@ class ScoringEngine {
     }
     
     /**
-     * Law 4: Track/Distance Suitability (20 points)
-     * Separate scoring for track performance, distance performance, and combination bonus
+     * Law 4: Track/Distance Suitability (20 points) - ENHANCED with Distance Pattern Bonus
+     * Separate scoring for track performance, distance performance, combination bonus, and distance pattern
      */
     private fun calculateTrackDistanceScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
         val trackDistanceStats = horseForm.trackDistanceStats
@@ -549,9 +577,14 @@ class ScoringEngine {
         val combinationScore = calculateCombinationBonus(trackDistanceStats)
         score += combinationScore
         
-        println("🏇 Law 3 (${horse.name}): Track=${String.format("%.1f", trackScore)}, Distance=${String.format("%.1f", distanceScore)}, Combination=${String.format("%.1f", combinationScore)}, Total=${String.format("%.1f", score)}")
+        // ENHANCED: Distance Pattern Bonus (0-5 points) - comfort zone or previous wins at distance
+        val distancePatternBonus = calculateDistancePatternBonus(horse, race, horseForm)
+        score += distancePatternBonus
         
-        return min(score, TRACK_DISTANCE_WEIGHT)
+        println("🏇 Law 4 (${horse.name}): Track=${String.format("%.1f", trackScore)}, Distance=${String.format("%.1f", distanceScore)}, Combination=${String.format("%.1f", combinationScore)}, Pattern=${String.format("%.1f", distancePatternBonus)}, Total=${String.format("%.1f", score)}")
+        
+        // Allow up to 25 points now (20 original + 5 pattern bonus)
+        return min(score, TRACK_DISTANCE_WEIGHT + 5.0)
     }
     
     /**
@@ -645,11 +678,32 @@ class ScoringEngine {
     }
     
     /**
-     * Law 6: Barrier (6 points)
-     * Points for barriers 1-8
+     * Law 6: Barrier (6 points) - ENHANCED: Distance-Aware
+     * Points based on barrier position relative to race distance
+     * Short races favor inside barriers more than longer races
      */
-    private fun calculateBarrierScore(horse: Horse): Double {
-        return if (horse.barrier in 1..8) BARRIER_WEIGHT else 0.0
+    private fun calculateBarrierScore(horse: Horse, race: Race): Double {
+        val distance = race.distance
+        val barrier = horse.barrier
+        
+        return when {
+            // Short races (≤1200m) - tight turning tracks, inside barriers are crucial
+            distance <= 1200 -> {
+                when {
+                    barrier in 1..4 -> 6.0  // Inside barriers are gold
+                    barrier in 5..8 -> 3.0  // Mid barriers acceptable
+                    else -> 0.0             // Wide barriers disadvantaged
+                }
+            }
+            // Medium/Long races (>1200m) - straighter tracks, barriers less critical
+            else -> {
+                when {
+                    barrier in 1..6 -> 4.0  // Inside still good but not crucial
+                    barrier in 7..12 -> 2.0 // Mid barriers fine
+                    else -> 0.0             // Very wide barriers slight disadvantage
+                }
+            }
+        }
     }
     
     /**
@@ -756,7 +810,7 @@ class ScoringEngine {
         score += combinationScore
         
         // Barrier still applies
-        val barrierScore = calculateBarrierScore(horse)
+        val barrierScore = calculateBarrierScore(horse, race)
         score += barrierScore
         
         // NEW: Penalty for lack of recent form (spell horses should not score too high)
@@ -810,7 +864,7 @@ class ScoringEngine {
         // No trial performance score - only real trial sectional times are scored
         
         // 4. BARRIER POSITION (6 points max)
-        val barrierScore = calculateBarrierScore(horse)
+        val barrierScore = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
         score += barrierScore
         println("🏇 First Starter ${horse.name} - Barrier Score: $barrierScore")
         
@@ -826,10 +880,15 @@ class ScoringEngine {
         score += combinationScore
         println("🏇 First Starter ${horse.name} - Combination Score: $combinationScore")
         
+        // 7. WEIGHT ADVANTAGE (8 points max) - NEW LAW 11
+        val weightAdvantageScore = calculateWeightAdvantageScore(horse, race.horses)
+        score += weightAdvantageScore
+        println("🏇 First Starter ${horse.name} - Weight Advantage Score: $weightAdvantageScore")
+        
         println("🏇 First Starter ${horse.name} - TOTAL SCORE: $score")
         
         // Cap first starters at reasonable level but allow good ones to score well
-        return min(score, 50.0) // Increased cap to 50 points for good first starters
+        return min(score, 58.0) // Increased cap from 50 to 58 (added 8 for weight advantage)
     }
     
     /**
@@ -918,6 +977,60 @@ class ScoringEngine {
     
     private fun isLowerClass(class1: Int, class2: Int): Boolean {
         return class1 < class2
+    }
+    
+    /**
+     * Count consecutive class drops in recent races
+     * Returns number of races where class decreased from previous race
+     */
+    private fun countConsecutiveClassDrops(races: List<RaceResultDetail>): Int {
+        if (races.size < 2) return 0
+        
+        var consecutiveDrops = 0
+        for (i in 0 until races.size - 1) {
+            val currentClass = races[i].raceClass?.let { parseRaceClass(it) } ?: 0
+            val previousClass = races[i + 1].raceClass?.let { parseRaceClass(it) } ?: 0
+            
+            if (currentClass > 0 && previousClass > 0 && currentClass < previousClass) {
+                consecutiveDrops++
+            } else {
+                break // Stop counting if pattern breaks
+            }
+        }
+        
+        return consecutiveDrops
+    }
+    
+    /**
+     * Calculate distance pattern bonus for Track/Distance law
+     * Rewards horses staying within their comfort zone or having won at this exact distance
+     */
+    private fun calculateDistancePatternBonus(horse: Horse, race: Race, horseForm: HorseForm): Double {
+        val raceDistance = race.distance
+        val recentDistances = horseForm.last5Races.mapNotNull { it.distance }
+        
+        if (recentDistances.isEmpty()) return 0.0
+        
+        val averageRecentDistance = recentDistances.average()
+        val distanceChange = kotlin.math.abs(raceDistance - averageRecentDistance)
+        
+        // Bonus for staying within comfort zone (±200m)
+        if (distanceChange <= 200) {
+            println("🏁 ${horse.name} - Distance comfort zone bonus (+3.0 points): ${raceDistance}m vs avg ${String.format("%.0f", averageRecentDistance)}m")
+            return 3.0
+        }
+        
+        // Check if horse has won at this exact distance before (±50m tolerance)
+        val hasWonAtDistance = horseForm.last5Races.any { 
+            it.position == 1 && it.distance != null && kotlin.math.abs(it.distance - raceDistance) <= 50 
+        }
+        
+        if (hasWonAtDistance) {
+            println("🏁 ${horse.name} - Won at this distance before (+5.0 points): ${raceDistance}m")
+            return 5.0
+        }
+        
+        return 0.0
     }
     
     /**
@@ -1161,6 +1274,67 @@ class ScoringEngine {
         
         println("🌦️ ${horse.name} - Track condition score: ${bestResult} points (${conditionCategory} conditions)")
         return bestResult
+    }
+    
+    /**
+     * Law 11: Weight Advantage (8 points) - NEW
+     * Compares horse's weight to field average
+     * Lower weight = advantage in handicap races
+     */
+    private fun calculateWeightAdvantageScore(horse: Horse, allHorses: List<Horse>): Double {
+        val allWeights = allHorses.map { it.weight }.filter { it > 0.0 }
+        
+        if (allWeights.isEmpty() || horse.weight <= 0.0) {
+            println("⚖️ ${horse.name} - No weight data available")
+            return 0.0
+        }
+        
+        val averageWeight = allWeights.average()
+        val weightDifference = averageWeight - horse.weight
+        
+        println("⚖️ ${horse.name} - Weight: ${horse.weight}kg, Field Average: ${String.format("%.1f", averageWeight)}kg, Difference: ${String.format("%.1f", weightDifference)}kg")
+        
+        val score = when {
+            weightDifference >= 4.0 -> 8.0  // Carrying 4kg+ less than average - huge advantage
+            weightDifference >= 2.0 -> 5.0  // Carrying 2-3kg less - good advantage
+            weightDifference >= 0.0 -> 2.0  // At or below average - slight advantage
+            weightDifference >= -2.0 -> 0.0 // Slightly above average - neutral
+            else -> -2.0                     // Penalty for carrying significant extra weight
+        }
+        
+        println("⚖️ ${horse.name} - Weight advantage score: ${String.format("%.1f", score)} points")
+        return max(score, 0.0) // Don't allow negative scores to affect total
+    }
+    
+    /**
+     * Law 12: Freshness (3 points) - NEW
+     * Awards bonus for optimal time between runs
+     * 2-4 weeks is ideal, backing up (<2 weeks) or too long (8+ weeks without being spell) penalized
+     */
+    private fun calculateFreshnessScore(horseForm: HorseForm, analysisDate: Date): Double {
+        if (horseForm.last5Races.isEmpty()) {
+            println("📅 Freshness - No race history available")
+            return 0.0
+        }
+        
+        val lastRaceDate = horseForm.last5Races[0].date
+        if (lastRaceDate == null) {
+            println("📅 Freshness - Last race date not available")
+            return 0.0
+        }
+        
+        val daysSinceRun = ((analysisDate.time - lastRaceDate.time) / (1000 * 60 * 60 * 24)).toInt()
+        
+        val score = when {
+            daysSinceRun in 14..28 -> 3.0  // Optimal freshness (2-4 weeks) - perfect timing
+            daysSinceRun in 29..56 -> 1.0  // Freshened up (4-8 weeks) - acceptable
+            daysSinceRun in 7..13 -> 0.0   // Backing up (1-2 weeks) - may be tired
+            daysSinceRun < 7 -> 0.0        // Quick backup (<1 week) - likely tired
+            else -> 0.0                     // Too long without being spell horse (handled separately)
+        }
+        
+        println("📅 Freshness - Days since last run: ${daysSinceRun}, Score: ${String.format("%.1f", score)} points")
+        return score
     }
     
     /**

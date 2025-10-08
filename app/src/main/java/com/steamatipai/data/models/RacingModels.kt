@@ -54,6 +54,8 @@ data class ScoreBreakdown(
     val trainer: Double = 0.0,           // Law 8 (was Law 7)
     val combination: Double = 0.0,       // Law 9 (was Law 8)
     val trackCondition: Double = 0.0,    // Law 10 (was Law 9)
+    val weightAdvantage: Double = 0.0,   // Law 11 (NEW)
+    val freshness: Double = 0.0,         // Law 12 (NEW)
     val totalScore: Double = 0.0
 )
 

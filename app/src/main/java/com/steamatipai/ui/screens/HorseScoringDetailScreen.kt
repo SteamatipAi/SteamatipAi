@@ -262,6 +262,24 @@ fun HorseScoringDetailScreen(
                 description = "How well the horse performs on current track condition"
             )
             
+            // Law 12: Weight Advantage (NEW)
+            ScoringLawCard(
+                lawNumber = 12,
+                lawName = "Weight Advantage",
+                score = scoredHorse.scoreBreakdown.weightAdvantage,
+                maxScore = 8.0,
+                description = "Advantage from carrying less weight than field average"
+            )
+            
+            // Law 13: Freshness (NEW)
+            ScoringLawCard(
+                lawNumber = 13,
+                lawName = "Freshness",
+                score = scoredHorse.scoreBreakdown.freshness,
+                maxScore = 3.0,
+                description = "Optimal time between runs (2-4 weeks ideal)"
+            )
+            
             // Additional Info
             if (scoredHorse.scoreBreakdown.type != null) {
                 Card(
