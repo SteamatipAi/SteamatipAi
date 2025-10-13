@@ -17,22 +17,23 @@
 
 ## Overview
 
-SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses based on multiple performance factors. The system adapts its scoring approach based on the horse's current status (normal racing, returning from spell, or first starter) to ensure fair and accurate predictions.
+SteamaTip AI employs a sophisticated 14-law scoring system that analyzes horses based on multiple performance factors. The system adapts its scoring approach based on the horse's current status (normal racing, returning from spell, or first starter) to ensure fair and accurate predictions.
 
 ### Key Principles
 - **Real Data Only**: No mock data, hardcoded values, or fallback data
 - **Adaptive Scoring**: Different scoring approaches for different horse categories
-- **Comprehensive Analysis**: 11 distinct laws covering all aspects of horse performance
+- **Comprehensive Analysis**: 14 distinct laws covering all aspects of horse performance
 - **Transparent Scoring**: Every point is explained and traceable
+- **Granular Track/Distance Analysis**: Separate scoring for distance, track, and combined performance
 
 ---
 
 ## Scoring System Architecture
 
 ### Total Points Available
-- **Normal Horses**: 116 points (9 active laws + 2 inactive spell laws)
-- **Spell Horses**: 124 points (11 active laws including 2nd up recent form bonus)
-- **First Starters**: 50 points (5 laws - limited historical data)
+- **Normal Horses**: 127 points (14 active laws)
+- **Spell Horses**: 127 points (14 active laws including 2nd up recent form bonus)
+- **First Starters**: 58 points (7 laws - limited historical data)
 
 ### Horse Categories
 1. **Normal Horses**: Regular racing form with recent starts
@@ -43,7 +44,7 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 
 ## Detailed Law Explanations
 
-### For Normal Horses (9 Laws - 116 Points Total)
+### For Normal Horses (14 Laws - 127 Points Total)
 
 #### Law 1: Recent Form (25 Points)
 **Purpose**: Evaluates the horse's performance in its last 5 races
@@ -62,20 +63,43 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 **Scoring Method**:
 - **Class Drop Bonus**: +15 points (dropping in class)
 - **Class Drop + Good Last Start**: +20 points total
+- **Declining Horse Detection**: -5 points penalty for 3+ consecutive class drops (indicates decline, not tactical drop)
 - **Similar Class**: +3 points per good performance (1st-3rd) in similar classes
 - **Class Rise**: +10 points if has form in lower classes, -5 points penalty if no lower class form
 - **Maximum**: 25 points
 
-#### Law 3: Track/Distance History (20 Points)
-**Purpose**: Evaluates the horse's historical performance at this track and distance
+#### Law 3: Distance Success (8 Points)
+**Purpose**: Awards points for winning or placing at this distance previously
 
-**Scoring Components**:
-- **Track Performance** (0-8 points): Based on win rate and place rate at this track
-- **Distance Performance** (0-8 points): Based on win rate and place rate at this distance
-- **Combination Bonus** (0-4 points): Bonus for success in BOTH track AND distance
-- **Maximum**: 20 points
+**Scoring Method**:
+- **Win Rate Bonus** (0-4 points): Based on win rate at this distance
+- **Place Rate Bonus** (0-4 points): Based on place rate at this distance
+- **Maximum**: 8 points
 
-#### Law 4: Sectional Time (8 Points)
+**Note**: This law focuses ONLY on distance performance, regardless of track.
+
+#### Law 4: Track Success (8 Points)
+**Purpose**: Awards points for winning or placing at this track previously
+
+**Scoring Method**:
+- **Win Rate Bonus** (0-4 points): Based on win rate at this track
+- **Place Rate Bonus** (0-4 points): Based on place rate at this track
+- **Maximum**: 8 points
+
+**Note**: This law focuses ONLY on track performance, regardless of distance.
+
+#### Law 5: Track+Distance Combined (9 Points)
+**Purpose**: Awards points for winning or placing at this specific track AND distance combination
+
+**Scoring Method**:
+- **Combined Win Rate** (0-2 points): Based on wins at this exact track+distance
+- **Combined Place Rate** (0-2 points): Based on places at this exact track+distance
+- **Distance Pattern Bonus** (0-5 points): Rewards horses staying within comfort zone (±200m) or having won at this exact distance before
+- **Maximum**: 9 points
+
+**Note**: This law only awards points if the horse has actually run at this specific track+distance combination before. The pattern bonus rewards consistency in distance racing.
+
+#### Law 6: Sectional Time (8 Points)
 **Purpose**: Rewards horses with fast finishing speeds from their last start
 
 **Scoring Method**:
@@ -85,14 +109,22 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 - **≤36.0s**: 2 points (Average finishing)
 - **>36.0s**: 0 points (Slow finishing)
 
-#### Law 5: Barrier Position (6 Points)
-**Purpose**: Favors horses drawn in inside barriers
+#### Law 7: Barrier Position (6 Points) - Distance-Aware
+**Purpose**: Favors horses drawn in inside barriers, with scoring adjusted for race distance
 
 **Scoring Method**:
-- **Barriers 1-8**: 6 points
-- **Barriers 9+**: 0 points
+- **Short Races (≤1200m)**:
+  - Barriers 1-4: 6 points (Inside barriers crucial)
+  - Barriers 5-8: 3 points (Mid barriers acceptable)
+  - Barriers 9+: 0 points (Wide barriers disadvantaged)
+- **Medium/Long Races (>1200m)**:
+  - Barriers 1-6: 4 points (Inside barriers helpful)
+  - Barriers 7-12: 2 points (Mid barriers acceptable)
+  - Barriers 13+: 0 points (Wide barriers disadvantaged)
 
-#### Law 6: Jockey Performance (8 Points)
+**Note**: Barrier advantage is more critical in short races with tight turns.
+
+#### Law 8: Jockey Performance (8 Points)
 **Purpose**: Evaluates the jockey's current premiership ranking
 
 **Scoring Method**:
@@ -104,7 +136,7 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 
 **Champion Jockey Override**: Elite jockeys like Craig Williams receive maximum points regardless of current premiership standing, ensuring quality riders are properly recognized.
 
-#### Law 7: Trainer Performance (8 Points)
+#### Law 9: Trainer Performance (8 Points)
 **Purpose**: Evaluates the trainer's current premiership ranking
 
 **Scoring Method**:
@@ -113,7 +145,7 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 - **Rank 11-20**: 2 points
 - **Rank 21+**: 0 points
 
-#### Law 8: Jockey-Horse Relationship (8 Points)
+#### Law 10: Jockey-Horse Relationship (8 Points)
 **Purpose**: Rewards successful partnerships between jockey and horse
 
 **Scoring Method**:
@@ -123,7 +155,7 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 - **1 Place Together**: 0.5 points
 - **No Success Together**: 0 points
 
-#### Law 9: Track Condition (8 Points)
+#### Law 11: Track Condition (8 Points)
 **Purpose**: Assesses the horse's success on similar track conditions
 
 **Scoring Method**:
@@ -133,11 +165,35 @@ SteamaTip AI employs a sophisticated 11-law scoring system that analyzes horses 
 - **Other Results**: 0 points
 - **Condition Categories**: Firm/Good, Soft, Heavy, Synthetic
 
+#### Law 12: Weight Advantage (8 Points)
+**Purpose**: Compares horse's weight to field average, rewarding those carrying less weight
+
+**Scoring Method**:
+- **4+ kg below average**: 8 points (Significant advantage)
+- **2-3.9 kg below average**: 5 points (Good advantage)
+- **0-1.9 kg below average**: 2 points (Small advantage)
+- **At or above average**: 0 points (No advantage)
+- **Maximum**: 8 points
+
+**Note**: Weight handicapping is a critical factor in Australian racing. Horses carrying less weight than the field average have a measurable advantage.
+
+#### Law 13: Freshness (3 Points)
+**Purpose**: Awards bonus for optimal time between runs
+
+**Scoring Method**:
+- **14-28 days**: 3 points (Ideal freshness)
+- **29-56 days**: 1 point (Acceptable freshness)
+- **<14 days**: 0 points (Backing up too quickly)
+- **>56 days**: 0 points (Too long between runs for non-spell horses)
+- **Maximum**: 3 points
+
+**Note**: Spell horses (12+ weeks) don't receive freshness points as they're already categorized as fresh from spell.
+
 ---
 
-### For Spell Horses (10 Laws - 108 Points Total)
+### For Spell Horses (14 Laws - 127 Points Total)
 
-Spell horses (returning from 12+ week break) use a modified scoring system:
+Spell horses (returning from 12+ week break) use a modified scoring system with spell-specific laws:
 
 #### Law 1: 1st Up Performance (8 Points) - ACTIVE for 1st Up horses
 **Purpose**: Evaluates the horse's historical performance in first starts after spells
@@ -156,7 +212,7 @@ Spell horses (returning from 12+ week break) use a modified scoring system:
 - **2nd Up Thirds**: +1 point
 - **Maximum**: 8 points
 
-#### Law 2b: 2nd Up Recent Form Bonus (8 Points) - ACTIVE for 2nd Up horses
+#### Law 3: 2nd Up Recent Form Bonus (8 Points) - ACTIVE for 2nd Up horses
 **Purpose**: Awards bonus points for first-up performance when horse is second up (fixes scoring anomaly)
 
 **Scoring Method**:
@@ -169,33 +225,39 @@ Spell horses (returning from 12+ week break) use a modified scoring system:
 
 **Note**: This addresses the issue where second up horses received 0 for recent form despite good first-up runs.
 
-#### Laws 3-11: Same as Normal Horses (100 points total)
-- Class Suitability (25 pts)
-- Track/Distance History (20 pts)
-- Sectional Time (8 pts) - Only for 2nd Up horses
-- Barrier (6 pts)
-- Jockey (8 pts)
-- Trainer (8 pts)
-- Jockey-Horse Relationship (8 pts)
-- Track Condition (8 pts)
+#### Laws 4-14: Same as Normal Horses (102 points total)
+- Law 4: Class Suitability (25 pts)
+- Law 5: Distance Success (8 pts)
+- Law 6: Track Success (8 pts)
+- Law 7: Track+Distance Combined (9 pts)
+- Law 8: Sectional Time (8 pts) - Only for 2nd Up horses
+- Law 9: Barrier (6 pts) - Distance-aware
+- Law 10: Jockey (8 pts)
+- Law 11: Trainer (8 pts)
+- Law 12: Jockey-Horse Relationship (8 pts)
+- Law 13: Track Condition (8 pts)
+- Law 14: Weight Advantage (8 pts)
+- Law 15: Freshness (0 pts for spell horses - exempt as already fresh from spell)
 
 ---
 
-### For First Starters (5 Laws - 50 Points Maximum)
+### For First Starters (7 Laws - 58 Points Maximum)
 
 First starters have limited scoring due to no race history:
 
 #### Law 1: Jockey Performance (8 Points)
 #### Law 2: Trainer Performance (8 Points)
-#### Law 3: Barrier Position (6 Points)
-#### Law 4: Trial Sectional Times (10 Points)
-- **≤33.0s**: 10 points (Very fast trial)
-- **≤34.0s**: 8 points (Fast trial)
-- **≤35.0s**: 6 points (Good trial)
-- **≤36.0s**: 4 points (Average trial)
-- **>36.0s**: 2 points (Slow trial)
+#### Law 3: Barrier Position (6 Points) - Distance-aware
+#### Law 4: Trial Sectional Times (8 Points)
+- **≤33.0s**: 8 points (Very fast trial)
+- **≤34.0s**: 6 points (Fast trial)
+- **≤35.0s**: 4 points (Good trial)
+- **≤36.0s**: 2 points (Average trial)
+- **>36.0s**: 0 points (Slow trial)
 
-#### Law 5: Jockey-Horse Relationship (8 Points) - Limited scoring
+#### Law 5: Jockey-Horse Relationship (0 Points) - No history available
+#### Law 6: Weight Advantage (8 Points)
+#### Law 7: Freshness (0 Points) - No race history available
 
 ---
 
@@ -228,26 +290,28 @@ Has Real Form Data?
     │
     └─ YES ──► Check Horse Category
         │
-        ├─ FIRST STARTER ──► Apply First Starter Laws (5 laws, 50 pts max)
+        ├─ FIRST STARTER ──► Apply First Starter Laws (7 laws, 58 pts max)
         │   │
-        │   └─ Laws: Jockey, Trainer, Barrier, Trial Sectionals, Jockey-Horse
+        │   └─ Laws: Jockey, Trainer, Barrier, Trial Sectionals, Weight Advantage
         │
         ├─ SPELL HORSE ──► Check Spell Status
         │   │
-        │   ├─ 1ST UP ──► Apply Spell Horse Laws (10 laws, 108 pts max)
+        │   ├─ 1ST UP ──► Apply Spell Horse Laws (14 laws, 127 pts max)
         │   │   │
-        │   │   └─ Laws: 1st Up (ACTIVE), 2nd Up (inactive), Class, Track/Distance, 
-        │   │       Sectional (inactive), Barrier, Jockey, Trainer, Jockey-Horse, Track Condition
+        │   │   └─ Laws: 1st Up (ACTIVE), 2nd Up (inactive), 2nd Up Bonus (inactive),
+        │   │       Class, Distance, Track, Track+Distance, Sectional (inactive), Barrier,
+        │   │       Jockey, Trainer, Jockey-Horse, Track Condition, Weight, Freshness (0)
         │   │
-        │   └─ 2ND UP ──► Apply Spell Horse Laws (10 laws, 108 pts max)
+        │   └─ 2ND UP ──► Apply Spell Horse Laws (14 laws, 127 pts max)
         │       │
-        │       └─ Laws: 1st Up (inactive), 2nd Up (ACTIVE), Class, Track/Distance,
-        │           Sectional (ACTIVE), Barrier, Jockey, Trainer, Jockey-Horse, Track Condition
+        │       └─ Laws: 1st Up (inactive), 2nd Up (ACTIVE), 2nd Up Bonus (ACTIVE),
+        │           Class, Distance, Track, Track+Distance, Sectional (ACTIVE), Barrier,
+        │           Jockey, Trainer, Jockey-Horse, Track Condition, Weight, Freshness (0)
         │
-        └─ NORMAL HORSE ──► Apply Normal Horse Laws (9 laws, 116 pts max)
+        └─ NORMAL HORSE ──► Apply Normal Horse Laws (14 laws, 127 pts max)
             │
-            └─ Laws: Recent Form, Class, Track/Distance, Sectional, Barrier,
-                Jockey, Trainer, Jockey-Horse, Track Condition
+            └─ Laws: Recent Form, Class, Distance, Track, Track+Distance, Sectional,
+                Barrier, Jockey, Trainer, Jockey-Horse, Track Condition, Weight, Freshness
     │
     ▼
 Calculate Total Score
@@ -366,6 +430,6 @@ The system's reliance on real data and transparent calculations ensures that use
 
 ---
 
-*Document Version: 2.2*  
-*Last Updated: September 2025*  
-*SteamaTip AI - Professional Horse Racing Analysis with Parallel Processing, Champion Jockey Override, and Enhanced Scoring Laws*
+*Document Version: 2.3*  
+*Last Updated: October 2025*  
+*SteamaTip AI - Professional Horse Racing Analysis with 14-Law System, Granular Track/Distance Analysis, and Distance-Aware Barrier Scoring*

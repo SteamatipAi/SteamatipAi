@@ -199,81 +199,99 @@ fun HorseScoringDetailScreen(
                 description = "How well the horse fits the race class"
             )
             
-            // Law 5: Track/Distance History
+            // Law 5: Distance Success
             ScoringLawCard(
                 lawNumber = 5,
-                lawName = "Track/Distance History",
-                score = scoredHorse.scoreBreakdown.trackDistance,
-                maxScore = 20.0,
-                description = "Past performance at this track and distance"
+                lawName = "Distance Success",
+                score = scoredHorse.scoreBreakdown.distanceSuccess,
+                maxScore = 8.0,
+                description = "Previous wins or placings at this distance"
             )
             
-            // Law 6: Sectional Time
+            // Law 6: Track Success
             ScoringLawCard(
                 lawNumber = 6,
+                lawName = "Track Success",
+                score = scoredHorse.scoreBreakdown.trackSuccess,
+                maxScore = 8.0,
+                description = "Previous wins or placings at this track"
+            )
+            
+            // Law 7: Track+Distance Combined
+            ScoringLawCard(
+                lawNumber = 7,
+                lawName = "Track+Distance Combined",
+                score = scoredHorse.scoreBreakdown.trackDistanceCombined,
+                maxScore = 9.0,
+                description = "Success at this specific track AND distance combination, plus distance pattern bonus"
+            )
+            
+            // Law 8: Sectional Time
+            ScoringLawCard(
+                lawNumber = 8,
                 lawName = "Sectional Time",
                 score = scoredHorse.scoreBreakdown.sectionalTime,
                 maxScore = 8.0,
                 description = "Speed in final 600m of recent races (only for normal/2nd up horses)"
             )
             
-            // Law 7: Barrier
+            // Law 9: Barrier
             ScoringLawCard(
-                lawNumber = 7,
+                lawNumber = 9,
                 lawName = "Barrier",
                 score = scoredHorse.scoreBreakdown.barrier,
                 maxScore = 6.0,
-                description = "Starting position advantage"
+                description = "Starting position advantage (distance-aware)"
             )
             
-            // Law 8: Jockey
+            // Law 10: Jockey
             ScoringLawCard(
-                lawNumber = 8,
+                lawNumber = 10,
                 lawName = "Jockey",
                 score = scoredHorse.scoreBreakdown.jockey,
                 maxScore = 8.0,
                 description = "Jockey's current form and premiership ranking"
             )
             
-            // Law 9: Trainer
+            // Law 11: Trainer
             ScoringLawCard(
-                lawNumber = 9,
+                lawNumber = 11,
                 lawName = "Trainer",
                 score = scoredHorse.scoreBreakdown.trainer,
                 maxScore = 8.0,
                 description = "Trainer's current form and premiership ranking"
             )
             
-            // Law 10: Jockey-Horse Relationship
+            // Law 12: Jockey-Horse Relationship
             ScoringLawCard(
-                lawNumber = 10,
+                lawNumber = 12,
                 lawName = "Jockey-Horse Relationship",
                 score = scoredHorse.scoreBreakdown.combination,
                 maxScore = 8.0,
                 description = "Historical success of jockey with this horse"
             )
             
-            // Law 11: Track Condition
+            // Law 13: Track Condition
             ScoringLawCard(
-                lawNumber = 11,
+                lawNumber = 13,
                 lawName = "Track Condition",
                 score = scoredHorse.scoreBreakdown.trackCondition,
                 maxScore = 8.0,
                 description = "How well the horse performs on current track condition"
             )
             
-            // Law 12: Weight Advantage (NEW)
+            // Law 14: Weight Advantage
             ScoringLawCard(
-                lawNumber = 12,
+                lawNumber = 14,
                 lawName = "Weight Advantage",
                 score = scoredHorse.scoreBreakdown.weightAdvantage,
                 maxScore = 8.0,
                 description = "Advantage from carrying less weight than field average"
             )
             
-            // Law 13: Freshness (NEW)
+            // Law 15: Freshness
             ScoringLawCard(
-                lawNumber = 13,
+                lawNumber = 15,
                 lawName = "Freshness",
                 score = scoredHorse.scoreBreakdown.freshness,
                 maxScore = 3.0,

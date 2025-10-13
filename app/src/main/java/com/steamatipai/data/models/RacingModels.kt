@@ -47,15 +47,18 @@ data class ScoreBreakdown(
     val firstUp: Double = 0.0,           // Law 1 for spell horses
     val secondUp: Double = 0.0,          // Law 2 for spell horses
     val classSuitability: Double = 0.0,  // Law 3 (was Law 2)
-    val trackDistance: Double = 0.0,     // Law 4 (was Law 3)
-    val sectionalTime: Double = 0.0,     // Law 5 (was Law 4)
-    val barrier: Double = 0.0,           // Law 6 (was Law 5)
-    val jockey: Double = 0.0,            // Law 7 (was Law 6)
-    val trainer: Double = 0.0,           // Law 8 (was Law 7)
-    val combination: Double = 0.0,       // Law 9 (was Law 8)
-    val trackCondition: Double = 0.0,    // Law 10 (was Law 9)
-    val weightAdvantage: Double = 0.0,   // Law 11 (NEW)
-    val freshness: Double = 0.0,         // Law 12 (NEW)
+    val trackDistance: Double = 0.0,     // Law 4 (DEPRECATED - split into 3 separate laws)
+    val distanceSuccess: Double = 0.0,   // Law 4: Distance Performance (NEW)
+    val trackSuccess: Double = 0.0,      // Law 5: Track Performance (NEW)
+    val trackDistanceCombined: Double = 0.0, // Law 6: Track+Distance Combined (NEW)
+    val sectionalTime: Double = 0.0,     // Law 7 (was Law 5)
+    val barrier: Double = 0.0,           // Law 8 (was Law 6)
+    val jockey: Double = 0.0,            // Law 9 (was Law 7)
+    val trainer: Double = 0.0,           // Law 10 (was Law 8)
+    val combination: Double = 0.0,       // Law 11 (was Law 9)
+    val trackCondition: Double = 0.0,    // Law 12 (was Law 10)
+    val weightAdvantage: Double = 0.0,   // Law 13 (was Law 11)
+    val freshness: Double = 0.0,         // Law 14 (was Law 12)
     val totalScore: Double = 0.0
 )
 

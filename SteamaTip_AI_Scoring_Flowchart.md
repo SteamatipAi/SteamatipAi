@@ -84,23 +84,28 @@
                   │                            │                            │
                   ▼                            ▼                            ▼
         ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
-        │   5 LAWS (50 pts max)   │  │  10 LAWS (108 pts max)  │  │   9 LAWS (116 pts max)  │
+        │   7 LAWS (58 pts max)   │  │  14 LAWS (127 pts max)  │  │  14 LAWS (127 pts max)  │
         │                         │  │                         │  │                         │
-        │ • Jockey (8 pts)        │  │ • 1st Up OR 2nd Up (8)  │  │ • Recent Form (25 pts)  │
-        │ • Trainer (8 pts)       │  │ • Class Suitability (25) │  │ • Class Suitability (25) │
-        │ • Barrier (6 pts)       │  │ • Track/Distance (20)   │  │ • Track/Distance (20)   │
-        │ • Trial Sectionals (10) │  │ • Sectional Time (8)    │  │ • Sectional Time (8)    │
-        │ • Jockey-Horse (8 pts)  │  │ • Barrier (6 pts)       │  │ • Barrier (6 pts)       │
-        │                         │  │ • Jockey (8 pts)        │  │ • Jockey (8 pts)        │
-        │                         │  │ • Trainer (8 pts)       │  │ • Trainer (8 pts)       │
-        │                         │  │ • Jockey-Horse (8 pts)  │  │ • Jockey-Horse (8 pts)  │
-        │                         │  │ • Track Condition (8)   │  │ • Track Condition (8)   │
+        │ • Jockey (8 pts)        │  │ • 1st/2nd Up (8 pts)    │  │ • Recent Form (25 pts)  │
+        │ • Trainer (8 pts)       │  │ • 2nd Up Bonus (8 pts)  │  │ • Class Suitability (25) │
+        │ • Barrier (6 pts)       │  │ • Class Suitability (25) │  │ • Distance Success (8)  │
+        │ • Trial Sectionals (8)  │  │ • Distance Success (8)  │  │ • Track Success (8)     │
+        │ • Jockey-Horse (0 pts)  │  │ • Track Success (8)     │  │ • Track+Distance (9)    │
+        │ • Weight Advantage (8)  │  │ • Track+Distance (9)    │  │ • Sectional Time (8)    │
+        │ • Freshness (0 pts)     │  │ • Sectional Time (8)    │  │ • Barrier (6 pts)       │
+        │                         │  │ • Barrier (6 pts)       │  │ • Jockey (8 pts)        │
+        │                         │  │ • Jockey (8 pts)        │  │ • Trainer (8 pts)       │
+        │                         │  │ • Trainer (8 pts)       │  │ • Jockey-Horse (8 pts)  │
+        │                         │  │ • Jockey-Horse (8 pts)  │  │ • Track Condition (8)   │
+        │                         │  │ • Track Condition (8)   │  │ • Weight Advantage (8)  │
+        │                         │  │ • Weight Advantage (8)  │  │ • Freshness (3 pts)     │
+        │                         │  │ • Freshness (0 pts)     │  │                         │
         └─────────┬───────────────┘  └─────────┬───────────────┘  └─────────┬───────────────┘
                   │                            │                            │
                   ▼                            ▼                            ▼
         ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
         │   Calculate Total       │  │   Calculate Total       │  │   Calculate Total       │
-        │   Score (Max 50)        │  │   Score (Max 108)       │  │   Score (Max 116)       │
+        │   Score (Max 58)        │  │   Score (Max 127)       │  │   Score (Max 127)       │
         └─────────┬───────────────┘  └─────────┬───────────────┘  └─────────┬───────────────┘
                   │                            │                            │
                   └────────────────────────────┼────────────────────────────┘
@@ -183,9 +188,10 @@
 - **Normal Horse**: Regular racing with recent form
 
 ### 3. Scoring Adaptation
-- **Spell Horses**: Exclude Recent Form law, add 1st Up/2nd Up laws
-- **First Starters**: Limited to 5 laws due to no race history
-- **Normal Horses**: Full 9-law scoring system
+- **Spell Horses**: Exclude Recent Form law, add 1st Up/2nd Up/2nd Up Bonus laws, 14 laws total (127 pts max)
+- **First Starters**: Limited to 7 laws due to no race history (58 pts max)
+- **Normal Horses**: Full 14-law scoring system (127 pts max)
+- **Track/Distance Split**: Laws 5-7 provide granular analysis (Distance, Track, Combined)
 
 ### 4. Betting Recommendations
 - **Point Gap Analysis**: Based on difference between 1st and 2nd place
