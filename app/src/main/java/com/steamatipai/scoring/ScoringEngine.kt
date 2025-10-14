@@ -78,7 +78,7 @@ class ScoringEngine {
         }
         
         // Check if horse is returning from spell based on form string
-        val currentSpellStatus = getCurrentSpellStatus(horse)
+        val currentSpellStatus = getCurrentSpellStatus(horse, race.date, horseForm)
         val isReturningFromSpell = currentSpellStatus == "1ST_UP" || currentSpellStatus == "2ND_UP"
         val isFirstUp = isFirstUpHorse(horseForm)
         
@@ -90,13 +90,13 @@ class ScoringEngine {
                 // Calculate individual law scores based on current spell status
                 val firstUp = if (currentSpellStatus == "1ST_UP") calculateFirstUpScore(horseForm) else 0.0
                 val secondUp = if (currentSpellStatus == "2ND_UP") calculateSecondUpScore(horseForm) else 0.0
-                val secondUpRecentFormBonus = if (currentSpellStatus == "2ND_UP") calculateSecondUpRecentFormBonus(horseForm) else 0.0
+                val secondUpRecentFormBonus = if (currentSpellStatus == "2ND_UP") calculateSecondUpRecentFormBonus(horseForm, race.date) else 0.0
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm) // Use historical class performance
                 // NEW: Split track/distance into 3 separate laws
                 val distanceSuccess = calculateDistanceSuccessScore(horse, race, horseForm) // Law 4
                 val trackSuccess = calculateTrackSuccessScore(horse, race, horseForm) // Law 5
                 val trackDistanceCombined = calculateTrackDistanceCombinedScore(horse, race, horseForm) // Law 6
-                val sectionalTime = if (currentSpellStatus == "2ND_UP") calculateSectionalTimeScore(horseForm) else 0.0 // Only 2nd Up horses get sectional time
+                val sectionalTime = if (currentSpellStatus == "2ND_UP") calculateSectionalTimeScore(horseForm, race.date) else 0.0 // Only 2nd Up horses get sectional time
                 val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
@@ -169,7 +169,7 @@ class ScoringEngine {
                 val distanceSuccess = 0.0 // First-up horses get 0 for distance history
                 val trackSuccess = 0.0 // First-up horses get 0 for track history
                 val trackDistanceCombined = 0.0 // First-up horses get 0 for track+distance history
-                val sectionalTime = calculateSectionalTimeScore(horseForm)
+                val sectionalTime = calculateSectionalTimeScore(horseForm, race.date)
                 val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
@@ -207,13 +207,13 @@ class ScoringEngine {
             else -> {
                 println("🏆 ${horse.name} - USING NORMAL HORSE SCORING (all 14 laws)")
                 // Apply all normal laws
-                val recentForm = calculateRecentFormScore(horseForm)
+                val recentForm = calculateRecentFormScore(horseForm, race.date)
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm)
                 // NEW: Split track/distance into 3 separate laws
                 val distanceSuccess = calculateDistanceSuccessScore(horse, race, horseForm) // Law 4
                 val trackSuccess = calculateTrackSuccessScore(horse, race, horseForm) // Law 5
                 val trackDistanceCombined = calculateTrackDistanceCombinedScore(horse, race, horseForm) // Law 6
-                val sectionalTime = calculateSectionalTimeScore(horseForm)
+                val sectionalTime = calculateSectionalTimeScore(horseForm, race.date)
                 val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
@@ -281,7 +281,7 @@ class ScoringEngine {
      * Law 1: Recent Form for Normal Horses (25 points)
      * Considers last 5 races for wins, places, and last start margin bonus
      */
-    private fun calculateRecentFormScore(horseForm: HorseForm): Double {
+    private fun calculateRecentFormScore(horseForm: HorseForm, analysisDate: Date): Double {
         println("🔍 Law 1 DEBUG: Starting Law 1 calculation")
         println("🔍 Law 1 DEBUG: HorseForm.last5Races.size = ${horseForm.last5Races.size}")
         
@@ -290,9 +290,17 @@ class ScoringEngine {
             return 0.0
         }
         
+        // CRITICAL FIX: Filter out races from today (analysis date) to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        if (historicalRaces.isEmpty()) {
+            println("⚠️ Law 1: No historical races available after filtering today's races - returning 0.0")
+            return 0.0
+        }
+        
         var score = 0.0
-        val last5Races = horseForm.last5Races.take(5)
-        println("🏇 Law 1: Processing ${last5Races.size} recent races")
+        val last5Races = historicalRaces.take(5)
+        println("🏇 Law 1: Processing ${last5Races.size} recent races (filtered from ${horseForm.last5Races.size} total)")
         
         // Debug: Print all race details
         last5Races.forEachIndexed { index, race ->
@@ -370,7 +378,7 @@ class ScoringEngine {
      * Determine if horse is currently 1st up or 2nd up from current spell
      * Parses the form string to check recent entries (reading right-to-left)
      */
-    private fun getCurrentSpellStatus(horse: Horse): String {
+    private fun getCurrentSpellStatus(horse: Horse, analysisDate: Date, horseForm: HorseForm): String {
         val form = horse.form.trim()
         println("🔍 Analysing form string: '$form' for ${horse.name}")
         
@@ -379,18 +387,44 @@ class ScoringEngine {
             return "UNKNOWN"
         }
         
-        // Read form string right-to-left (most recent first)
+        // CRITICAL FIX: The form string may include today's race result if it's already on the form page
+        // We need to filter out today's race from the form string before analyzing spell status
+        
+        // Check if the most recent race in last5Races is from today
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        val todayRaceCount = horseForm.last5Races.size - historicalRaces.size
+        
+        // If there are races from today, we need to strip them from the form string
+        val historicalForm = if (todayRaceCount > 0) {
+            // Remove the first N characters from the form string (most recent races)
+            if (form.length > todayRaceCount) {
+                form.substring(todayRaceCount)
+            } else {
+                "" // All races are from today, no historical form
+            }
+        } else {
+            form
+        }
+        
+        println("🔍 Original form: '$form', Historical form (excluding today): '$historicalForm', Races from today: $todayRaceCount")
+        
+        if (historicalForm.isEmpty()) {
+            println("🔍 No historical form data available after filtering today's races")
+            return "UNKNOWN"
+        }
+        
+        // Read form string right-to-left (most recent HISTORICAL first)
         // Example: "32x1x2212x" -> read as: x, 2, 1, 2, x, 1, x, 2, 3
         
-        val reversedForm = form.reversed()
-        println("🔍 Reversed form string: '$reversedForm'")
+        val reversedForm = historicalForm.reversed()
+        println("🔍 Reversed historical form string: '$reversedForm'")
         
-        // Check first character (most recent race)
+        // Check first character (most recent HISTORICAL race)
         val firstChar = reversedForm.firstOrNull()
         
         when {
             firstChar == 'x' || firstChar == 'X' -> {
-                println("🔍 Most recent race is 'X' - horse is 1st Up from spell")
+                println("🔍 Most recent HISTORICAL race is 'X' - horse is 1st Up from spell")
                 return "1ST_UP"
             }
             firstChar != null && firstChar.isDigit() -> {
@@ -399,7 +433,7 @@ class ScoringEngine {
                     println("🔍 Pattern: ${firstChar}X - horse is 2nd Up from spell")
                     return "2ND_UP"
                 } else {
-                    println("🔍 Most recent race is number but no spell pattern - normal horse")
+                    println("🔍 Most recent HISTORICAL race is number but no spell pattern - normal horse")
                     return "NORMAL"
                 }
             }
@@ -477,7 +511,7 @@ class ScoringEngine {
      * Awards bonus points for the first-up performance when horse is second up
      * This fixes the issue where second up horses get 0 for recent form despite good first-up runs
      */
-    private fun calculateSecondUpRecentFormBonus(horseForm: HorseForm): Double {
+    private fun calculateSecondUpRecentFormBonus(horseForm: HorseForm, analysisDate: Date): Double {
         println("🔍 Law 2b: Starting Second Up Recent Form Bonus calculation")
         
         if (horseForm.last5Races.isEmpty()) {
@@ -485,8 +519,22 @@ class ScoringEngine {
             return 0.0
         }
         
-        // For second up horses, we specifically look at their first-up run (most recent race)
-        val firstUpRun = horseForm.last5Races.firstOrNull()
+        // CRITICAL FIX: Filter out races from today (analysis date) to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        if (historicalRaces.isEmpty()) {
+            println("⚠️ Law 2b: No historical races available after filtering today's races - returning 0.0")
+            return 0.0
+        }
+        
+        // CRITICAL FIX: Sort historical races by date (most recent first) because last5Races may not be in date order
+        val sortedHistoricalRaces = historicalRaces.sortedByDescending { it.date }
+        
+        println("🏇 Law 2b: DEBUG - All historical races (UNSORTED): ${historicalRaces.map { "Pos:${it.position} Date:${it.date}" }}")
+        println("🏇 Law 2b: DEBUG - All historical races (SORTED by date): ${sortedHistoricalRaces.map { "Pos:${it.position} Date:${it.date}" }}")
+        
+        // For second up horses, we specifically look at their first-up run (most recent HISTORICAL race BY DATE)
+        val firstUpRun = sortedHistoricalRaces.firstOrNull()
         if (firstUpRun == null) {
             println("🏇 Law 2b: No first-up run data available - returning 0.0")
             return 0.0
@@ -494,7 +542,7 @@ class ScoringEngine {
         
         var score = 0.0
         
-        println("🏇 Law 2b: Analyzing first-up run - Position: ${firstUpRun.position}, Margin: ${firstUpRun.margin}")
+        println("🏇 Law 2b: Analyzing first-up run (MOST RECENT BY DATE) - Position: ${firstUpRun.position}, Margin: ${firstUpRun.margin}, Date: ${firstUpRun.date}")
         
         // Award bonus points based on first-up performance
         val positionBonus = when (firstUpRun.position) {
@@ -508,6 +556,8 @@ class ScoringEngine {
         score += positionBonus
         if (positionBonus > 0) {
             println("🏇 Law 2b: +${String.format("%.1f", positionBonus)} points for ${firstUpRun.position}${getPositionSuffix(firstUpRun.position)} place first-up")
+        } else {
+            println("⚠️ Law 2b: 0.0 points for ${firstUpRun.position}${getPositionSuffix(firstUpRun.position)} place first-up (position 5th or worse)")
         }
         
         // Additional bonus for being within 4 lengths of winner (regardless of position)
@@ -530,9 +580,13 @@ class ScoringEngine {
     private fun calculateClassSuitabilityScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
         if (horseForm.last5Races.isEmpty()) return 0.0
         
+        // Filter out races from today
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, race.date)
+        if (historicalRaces.isEmpty()) return 0.0
+        
         var score = 0.0
         val currentClass = parseRaceClass(race.raceClass)
-        val last3Classes = horseForm.last5Races.take(3).mapNotNull { it.raceClass?.let { parseRaceClass(it) } }
+        val last3Classes = historicalRaces.take(3).mapNotNull { it.raceClass?.let { parseRaceClass(it) } }
         
         if (last3Classes.isNotEmpty()) {
             val classComparison = compareClasses(currentClass, last3Classes)
@@ -542,27 +596,27 @@ class ScoringEngine {
                     score += 15.0 // Dropping in class bonus
                     
                     // ENHANCED: Check for declining horse pattern (repeatedly dropping class)
-                    val consecutiveClassDrops = countConsecutiveClassDrops(horseForm.last5Races)
+                    val consecutiveClassDrops = countConsecutiveClassDrops(historicalRaces)
                     if (consecutiveClassDrops >= 3) {
                         score -= 5.0 // Warning: this horse is in decline, not just tactically dropping
                         println("⚠️ ${horse.name} - Declining pattern detected (${consecutiveClassDrops} consecutive class drops), penalty applied")
                     }
                     
                     // Extra bonus if performed well last start
-                    if (horseForm.last5Races.isNotEmpty() && horseForm.last5Races[0].position <= 3) {
+                    if (historicalRaces.isNotEmpty() && historicalRaces[0].position <= 3) {
                         score += 5.0 // Class drop + good last start
                     }
                 }
                 ClassComparison.SIMILAR -> {
                     // Check performance in similar classes (last 5 starts)
-                    val goodPerformancesInClass = horseForm.last5Races.count { race ->
+                    val goodPerformancesInClass = historicalRaces.count { race ->
                         race.position <= 3 && race.raceClass?.let { isSimilarClass(parseRaceClass(it), currentClass) } == true
                     }
                     score += goodPerformancesInClass * 3.0
                 }
                 ClassComparison.RISING -> {
                     // Rising in class - check if horse has form in lesser classes
-                    val hasFormInLesserClasses = horseForm.last5Races.any { race ->
+                    val hasFormInLesserClasses = historicalRaces.any { race ->
                         race.position <= 2 && race.raceClass?.let { isLowerClass(parseRaceClass(it), currentClass) } == true
                     }
                     if (hasFormInLesserClasses) {
@@ -693,11 +747,15 @@ class ScoringEngine {
      * Law 7: Finishing Speed Bonus (8 points)
      * Rewards horses with the fastest last 600m times from their last start
      */
-    private fun calculateSectionalTimeScore(horseForm: HorseForm): Double {
+    private fun calculateSectionalTimeScore(horseForm: HorseForm, analysisDate: Date): Double {
         if (horseForm.last5Races.isEmpty()) return 0.0
         
-        // Get the last start (most recent race)
-        val lastStart = horseForm.last5Races[0]
+        // Filter out races from today
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        if (historicalRaces.isEmpty()) return 0.0
+        
+        // Get the last start (most recent HISTORICAL race)
+        val lastStart = historicalRaces[0]
         val lastStartSectional = lastStart.sectionalTime
         
         if (lastStartSectional == null) {
@@ -1385,6 +1443,37 @@ class ScoringEngine {
         
         println("📅 Freshness - Days since last run: ${daysSinceRun}, Score: ${String.format("%.1f", score)} points")
         return score
+    }
+    
+    /**
+     * Filter out races that occurred on or after the analysis date
+     * This prevents using today's results when analyzing today's races
+     */
+    private fun filterHistoricalRaces(races: List<RaceResultDetail>, analysisDate: Date): List<RaceResultDetail> {
+        val analysisDateOnly = java.util.Calendar.getInstance().apply {
+            time = analysisDate
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.time
+        
+        val filtered = races.filter { race ->
+            race.date?.let { raceDate ->
+                val raceDateOnly = java.util.Calendar.getInstance().apply {
+                    time = raceDate
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.time
+                
+                raceDateOnly.before(analysisDateOnly)
+            } ?: false // Exclude races with no date
+        }
+        
+        println("🗓️ RACE FILTER: Original ${races.size} races, filtered to ${filtered.size} races (excluding races on/after ${analysisDate})")
+        return filtered
     }
     
     /**
