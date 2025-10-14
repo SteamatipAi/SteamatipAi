@@ -100,7 +100,7 @@ class ScoringEngine {
                 val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
-                val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm) // Use historical relationship
+                val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, race, horseForm) // Use historical relationship
                 val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm) // Use historical track condition performance
@@ -217,7 +217,7 @@ class ScoringEngine {
                 val barrier = calculateBarrierScore(horse, race) // UPDATED: now distance-aware
                 val jockey = calculateJockeyScore(horse, jockeyRankings)
                 val trainer = calculateTrainerScore(horse, trainerRankings)
-                val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
+                val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, race, horseForm)
                 val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = calculateTrackConditionScore(horse, race, horseForm)
@@ -912,7 +912,7 @@ class ScoringEngine {
         }
         
         // Jockey/trainer combination success
-        val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
+        val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, race, horseForm)
         val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
         val combinationScore = jockeyHorseRelationship + jockeyTrainerPartnership
         score += combinationScore
@@ -982,7 +982,7 @@ class ScoringEngine {
         println("🏇 First Starter ${horse.name} - Sectional Score: $sectionalScore")
         
         // 6. JOCKEY-TRAINER COMBINATION SUCCESS (4 points max)
-        val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, horseForm)
+        val jockeyHorseRelationship = calculateJockeyHorseRelationshipScore(horse, race, horseForm)
         val jockeyTrainerPartnership = 0.0 // Removed jockey-trainer partnership scoring
         val combinationScore = (jockeyHorseRelationship + jockeyTrainerPartnership) * 0.5
         score += combinationScore
@@ -1036,8 +1036,16 @@ class ScoringEngine {
         // Only mark as spell if we have actual form data showing a gap
         if (horseForm.last5Races.isEmpty()) return false // Don't assume spell if no data
         
-        val lastRace = horseForm.last5Races.last() // Use LAST race (most recent) not first
-        lastRace.date?.let { lastRaceDate ->
+        // CRITICAL FIX: Filter out races from today to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        if (historicalRaces.isEmpty()) return false
+        
+        // Sort by date to get the most recent historical race
+        val sortedHistoricalRaces = historicalRaces.sortedByDescending { it.date }
+        val lastRace = sortedHistoricalRaces.firstOrNull()
+        
+        lastRace?.date?.let { lastRaceDate ->
             // Add detailed debug logging for date calculation
             println("🔍 SPELL DEBUG: analysisDate = $analysisDate (${analysisDate.time})")
             println("🔍 SPELL DEBUG: lastRaceDate = $lastRaceDate (${lastRaceDate.time})")
@@ -1053,7 +1061,7 @@ class ScoringEngine {
         
         // If we have recent races but can't parse the date, this is a parsing error
         // For now, treat as not a spell horse but log the issue
-        println("⚠️ CRITICAL: Horse ${horse.name} has ${horseForm.last5Races.size} recent races but last race date is null - this is a parsing error!")
+        println("⚠️ CRITICAL: Horse ${horse.name} has ${historicalRaces.size} historical races but last race date is null - this is a parsing error!")
         return false // Default to not spell if we can't determine
     }
     
@@ -1115,7 +1123,10 @@ class ScoringEngine {
      */
     private fun calculateDistancePatternBonus(horse: Horse, race: Race, horseForm: HorseForm): Double {
         val raceDistance = race.distance
-        val recentDistances = horseForm.last5Races.mapNotNull { it.distance }
+        
+        // CRITICAL FIX: Filter out races from today to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, race.date)
+        val recentDistances = historicalRaces.mapNotNull { it.distance }
         
         if (recentDistances.isEmpty()) return 0.0
         
@@ -1129,7 +1140,7 @@ class ScoringEngine {
         }
         
         // Check if horse has won at this exact distance before (±50m tolerance)
-        val hasWonAtDistance = horseForm.last5Races.any { 
+        val hasWonAtDistance = historicalRaces.any { 
             it.position == 1 && it.distance != null && kotlin.math.abs(it.distance - raceDistance) <= 50 
         }
         
@@ -1278,47 +1289,55 @@ class ScoringEngine {
      * Calculate jockey-horse relationship score (4 points max)
      * Based on previous wins with this jockey on this horse
      */
-    private fun calculateJockeyHorseRelationshipScore(horse: Horse, horseForm: HorseForm): Double {
-        println("🔍 LAW 8 DEBUG: Starting Jockey-Horse Relationship calculation for ${horse.name}")
+    private fun calculateJockeyHorseRelationshipScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
+        println("🔍 LAW 11 DEBUG: Starting Jockey-Horse Relationship calculation for ${horse.name}")
         
         if (horseForm.last5Races.isEmpty()) {
-            println("🔍 LAW 8 DEBUG: No historical races available for ${horse.name}")
+            println("🔍 LAW 11 DEBUG: No historical races available for ${horse.name}")
+            return 0.0
+        }
+        
+        // CRITICAL FIX: Filter out races from today to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, race.date)
+        
+        if (historicalRaces.isEmpty()) {
+            println("🔍 LAW 11 DEBUG: No historical races after filtering today's races for ${horse.name}")
             return 0.0
         }
         
         val currentJockey = horse.jockey
         if (currentJockey.isEmpty()) {
-            println("🔍 LAW 8 DEBUG: No current jockey for ${horse.name}")
+            println("🔍 LAW 11 DEBUG: No current jockey for ${horse.name}")
             return 0.0
         }
         
-        println("🔍 LAW 8 DEBUG: Current jockey: '$currentJockey'")
-        println("🔍 LAW 8 DEBUG: Historical races (${horseForm.last5Races.size}):")
+        println("🔍 LAW 11 DEBUG: Current jockey: '$currentJockey'")
+        println("🔍 LAW 11 DEBUG: Historical races (${historicalRaces.size}):")
         
-        horseForm.last5Races.forEachIndexed { index, race ->
-            println("   Race ${index + 1}: Position=${race.position}, Jockey='${race.jockey}', Trainer='${race.trainer}'")
+        historicalRaces.forEachIndexed { index, raceResult ->
+            println("   Race ${index + 1}: Position=${raceResult.position}, Jockey='${raceResult.jockey}', Trainer='${raceResult.trainer}'")
         }
         
         // Look for previous wins with this jockey on this horse
         // Use normalized names for comparison to handle prefixes/suffixes
         val normalizedCurrentJockey = normalizeNameForMatching(currentJockey)
-        println("🔍 LAW 8 DEBUG: Normalized current jockey: '$currentJockey' -> '$normalizedCurrentJockey'")
+        println("🔍 LAW 11 DEBUG: Normalized current jockey: '$currentJockey' -> '$normalizedCurrentJockey'")
         
-        val jockeyWins = horseForm.last5Races.count { race ->
-            val historicalJockey = race.jockey ?: ""
+        val jockeyWins = historicalRaces.count { raceResult ->
+            val historicalJockey = raceResult.jockey ?: ""
             val normalizedHistoricalJockey = normalizeNameForMatching(historicalJockey)
             val jockeyMatch = normalizedHistoricalJockey.equals(normalizedCurrentJockey, ignoreCase = true)
-            val isWin = race.position == 1
-            println("🔍 LAW 8 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${race.position} is win? $isWin")
+            val isWin = raceResult.position == 1
+            println("🔍 LAW 11 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${raceResult.position} is win? $isWin")
             jockeyMatch && isWin
         }
         
-        val jockeyPlaces = horseForm.last5Races.count { race ->
-            val historicalJockey = race.jockey ?: ""
+        val jockeyPlaces = historicalRaces.count { raceResult ->
+            val historicalJockey = raceResult.jockey ?: ""
             val normalizedHistoricalJockey = normalizeNameForMatching(historicalJockey)
             val jockeyMatch = normalizedHistoricalJockey.equals(normalizedCurrentJockey, ignoreCase = true)
-            val isPlace = race.position in 2..3
-            println("🔍 LAW 8 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${race.position} is place? $isPlace")
+            val isPlace = raceResult.position in 2..3
+            println("🔍 LAW 11 DEBUG: Race jockey='$historicalJockey' (normalized: '$normalizedHistoricalJockey') matches current='$normalizedCurrentJockey'? $jockeyMatch, Position=${raceResult.position} is place? $isPlace")
             jockeyMatch && isPlace
         }
         
@@ -1348,6 +1367,11 @@ class ScoringEngine {
     private fun calculateTrackConditionScore(horse: Horse, race: Race, horseForm: HorseForm): Double {
         if (horseForm.last5Races.isEmpty()) return 0.0
         
+        // CRITICAL FIX: Filter out races from today to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, race.date)
+        
+        if (historicalRaces.isEmpty()) return 0.0
+        
         val currentCondition = race.trackCondition ?: return 0.0
         val conditionCategory = getTrackConditionCategory(currentCondition)
         
@@ -1358,8 +1382,8 @@ class ScoringEngine {
         
         var bestResult = 0.0
         
-        // Check last 5 races for similar track conditions
-        horseForm.last5Races.forEach { raceResult ->
+        // Check last 5 historical races for similar track conditions
+        historicalRaces.forEach { raceResult ->
             val raceCondition = raceResult.trackCondition ?: return@forEach
             val raceConditionCategory = getTrackConditionCategory(raceCondition)
             
@@ -1425,7 +1449,18 @@ class ScoringEngine {
             return 0.0
         }
         
-        val lastRaceDate = horseForm.last5Races[0].date
+        // CRITICAL FIX: Filter out races from today to avoid using today's results
+        val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        if (historicalRaces.isEmpty()) {
+            println("📅 Freshness - No historical races available after filtering today's races")
+            return 0.0
+        }
+        
+        // Sort by date to get the most recent historical race
+        val sortedHistoricalRaces = historicalRaces.sortedByDescending { it.date }
+        val lastRaceDate = sortedHistoricalRaces.firstOrNull()?.date
+        
         if (lastRaceDate == null) {
             println("📅 Freshness - Last race date not available")
             return 0.0
