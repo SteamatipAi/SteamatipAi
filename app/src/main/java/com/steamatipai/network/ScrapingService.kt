@@ -10,6 +10,9 @@ import org.jsoup.select.Elements
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.io.File
+import java.io.FileWriter
+import java.util.Calendar
 
 class ScrapingService {
     private val httpClient: OkHttpClient = NetworkConfig.createHttpClient()
@@ -1261,21 +1264,69 @@ class ScrapingService {
             val horseFormUrl = NetworkConfig.buildHorseFormUrl(horseCode, stage, key, raceEntry)
             println("🌐 Horse form URL: $horseFormUrl")
             
+            // FILE LOGGING for debugging
+            if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                try {
+                    val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                    val writer = FileWriter(logFile, true)
+                    writer.appendLine("🔍 SCRAPER START: $horseCode")
+                    writer.appendLine("🔍 Stage: $stage, Key: $key, Race Entry: $raceEntry")
+                    writer.appendLine("🌐 Horse form URL: $horseFormUrl")
+                    writer.close()
+                } catch (e: Exception) {
+                    println("⚠️ Could not write to debug file: ${e.message}")
+                }
+            }
+            
             val request = NetworkConfig.createRequestBuilder(horseFormUrl).build()
             val response = httpClient.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 println("❌ Failed to fetch horse form: ${response.code}")
+                // FILE LOGGING for debugging
+                if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                    try {
+                        val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                        val writer = FileWriter(logFile, true)
+                        writer.appendLine("❌ HTTP ERROR: ${response.code}")
+                        writer.close()
+                    } catch (e: Exception) {
+                        println("⚠️ Could not write to debug file: ${e.message}")
+                    }
+                }
                 return null
             }
             
             val html = response.body?.string() ?: ""
             if (html.isEmpty()) {
                 println("❌ Empty response from horse form")
+                // FILE LOGGING for debugging
+                if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                    try {
+                        val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                        val writer = FileWriter(logFile, true)
+                        writer.appendLine("❌ EMPTY RESPONSE BODY")
+                        writer.close()
+                    } catch (e: Exception) {
+                        println("⚠️ Could not write to debug file: ${e.message}")
+                    }
+                }
                 return null
             }
             
             println("🔍 Horse form HTML response length: ${html.length} characters")
+            
+            // FILE LOGGING for debugging
+            if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                try {
+                    val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                    val writer = FileWriter(logFile, true)
+                    writer.appendLine("✅ HTTP SUCCESS: Got HTML response (${html.length} characters)")
+                    writer.close()
+                } catch (e: Exception) {
+                    println("⚠️ Could not write to debug file: ${e.message}")
+                }
+            }
             println("🔍 HTML preview (first 1000 chars): ${html.take(1000)}...")
             
             val doc = Jsoup.parse(html)
@@ -1309,6 +1360,18 @@ class ScrapingService {
         } catch (e: Exception) {
             println("❌ Error scraping horse form: ${e.message}")
             e.printStackTrace()
+            // FILE LOGGING for debugging
+            if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                try {
+                    val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                    val writer = FileWriter(logFile, true)
+                    writer.appendLine("❌ SCRAPER ERROR for COSMIC VIXEN: ${e.message}")
+                    writer.appendLine("Stack trace: ${e.stackTraceToString()}")
+                    writer.close()
+                } catch (fileError: Exception) {
+                    println("⚠️ Could not write to debug file: ${fileError.message}")
+                }
+            }
             null
         }
     }
@@ -1333,17 +1396,33 @@ class ScrapingService {
             // Parse track/distance statistics
             val trackDistanceStats = parseTrackDistanceStats(doc)
             
+            // CRITICAL FALLBACK: If HTML parsing failed, build stats from race history
+            // But only build general stats, NOT track-specific stats since we don't know current race details
+            val finalTrackDistanceStats = trackDistanceStats ?: buildGeneralStatsFromRaces(last5Races)
+            
             return HorseForm(
                 horseId = horseCode,
                 last5Races = last5Races,
                 trackDistanceHistory = trackDistanceHistory,
                 upResults = upResults,
                 trialSectionalTimes = trialSectionalTimes,
-                trackDistanceStats = trackDistanceStats
+                trackDistanceStats = finalTrackDistanceStats
             )
             
         } catch (e: Exception) {
             println("❌ Error parsing horse form document: ${e.message}")
+            // FILE LOGGING for debugging
+            if (horseCode.contains("COSMIC VIXEN", ignoreCase = true)) {
+                try {
+                    val logFile = File("/sdcard/Download/COSMIC_VIXEN_DEBUG.txt")
+                    val writer = FileWriter(logFile, true)
+                    writer.appendLine("❌ PARSING ERROR for COSMIC VIXEN: ${e.message}")
+                    writer.appendLine("Stack trace: ${e.stackTraceToString()}")
+                    writer.close()
+                } catch (fileError: Exception) {
+                    println("⚠️ Could not write to debug file: ${fileError.message}")
+                }
+            }
             return null
         }
     }
@@ -1408,7 +1487,152 @@ class ScrapingService {
         }
         
         println("✅ Parsed ${races.size} recent races")
-        return races
+        
+        // CRITICAL FIX: Filter out races with null dates (these are likely today's results)
+        val filteredRaces = races.filter { race ->
+            if (race.date == null) {
+                println("🗓️ SCRAPER FILTER: Excluding race with NULL date (Position=${race.position}, Track=${race.track}) - likely today's result")
+                false
+            } else {
+                true
+            }
+        }
+        
+        println("✅ After filtering null dates: ${filteredRaces.size} races remaining (excluded ${races.size - filteredRaces.size} races)")
+        return filteredRaces
+    }
+    
+    /**
+     * CRITICAL FALLBACK: Build only general distance statistics from race history when HTML parsing fails
+     * This ensures distance success calculations work, but does NOT create fake track-specific stats
+     */
+    private fun buildGeneralStatsFromRaces(races: List<RaceResultDetail>): TrackDistanceStats {
+        println("🔧 FALLBACK: Building general distance stats from ${races.size} races (NO track-specific stats)")
+        
+        // Only build distance statistics, NOT track-specific or combined stats
+        var distanceRuns = 0
+        var distanceWins = 0
+        var distancePlaces = 0
+        
+        val distanceGroups = races.groupBy { it.distance }
+        
+        // Calculate distance statistics only
+        for ((distance, distanceRaces) in distanceGroups) {
+            distanceRuns += distanceRaces.size
+            distanceWins += distanceRaces.count { it.position == 1 }
+            distancePlaces += distanceRaces.count { it.position <= 3 }
+        }
+        
+        val distanceStats = PerformanceStats(
+            runs = distanceRuns,
+            wins = distanceWins,
+            seconds = distancePlaces - distanceWins,
+            thirds = 0
+        )
+        
+        // Return stats with NO track-specific or combined data (use empty stats)
+        return TrackDistanceStats(
+            trackStats = PerformanceStats(0, 0, 0, 0), // NO track stats - horse hasn't raced at current track
+            distanceStats = distanceStats, // General distance stats only
+            combinedStats = PerformanceStats(0, 0, 0, 0), // NO combined stats - no track+distance history
+            conditionStats = null // NO condition stats - no track-specific history
+        )
+    }
+    
+    /**
+     * DEPRECATED: This function was creating incorrect track-specific stats
+     * Use buildGeneralStatsFromRaces instead
+     */
+    private fun buildTrackDistanceStatsFromRaces(races: List<RaceResultDetail>): TrackDistanceStats {
+        println("🔧 FALLBACK: Building track/distance stats from ${races.size} races")
+        
+        // Count wins, places, and runs for each category
+        var trackRuns = 0
+        var trackWins = 0
+        var trackPlaces = 0
+        
+        var distanceRuns = 0
+        var distanceWins = 0
+        var distancePlaces = 0
+        
+        var combinedRuns = 0
+        var combinedWins = 0
+        var combinedPlaces = 0
+        
+        var conditionRuns = 0
+        var conditionWins = 0
+        var conditionPlaces = 0
+        
+        // Group races by track, distance, track+distance combination, and track condition
+        val trackGroups = races.groupBy { it.track }
+        val distanceGroups = races.groupBy { it.distance }
+        val combinedGroups = races.groupBy { "${it.track}_${it.distance}" }
+        val conditionGroups = races.groupBy { it.trackCondition }
+        
+        // Calculate track statistics
+        for ((track, trackRaces) in trackGroups) {
+            trackRuns += trackRaces.size
+            trackWins += trackRaces.count { it.position == 1 }
+            trackPlaces += trackRaces.count { it.position <= 3 }
+        }
+        
+        // Calculate distance statistics  
+        for ((distance, distanceRaces) in distanceGroups) {
+            distanceRuns += distanceRaces.size
+            distanceWins += distanceRaces.count { it.position == 1 }
+            distancePlaces += distanceRaces.count { it.position <= 3 }
+        }
+        
+        // Calculate combined track+distance statistics
+        for ((combined, combinedRaces) in combinedGroups) {
+            combinedRuns += combinedRaces.size
+            combinedWins += combinedRaces.count { it.position == 1 }
+            combinedPlaces += combinedRaces.count { it.position <= 3 }
+        }
+        
+        // Calculate track condition statistics
+        for ((condition, conditionRaces) in conditionGroups) {
+            conditionRuns += conditionRaces.size
+            conditionWins += conditionRaces.count { it.position == 1 }
+            conditionPlaces += conditionRaces.count { it.position <= 3 }
+        }
+        
+        val trackStats = PerformanceStats(
+            runs = trackRuns,
+            wins = trackWins,
+            seconds = trackPlaces - trackWins, // places minus wins = 2nd+3rd
+            thirds = 0 // We don't track 3rd separately, just places
+        )
+        
+        val distanceStats = PerformanceStats(
+            runs = distanceRuns,
+            wins = distanceWins,
+            seconds = distancePlaces - distanceWins,
+            thirds = 0
+        )
+        
+        val combinedStats = PerformanceStats(
+            runs = combinedRuns,
+            wins = combinedWins,
+            seconds = combinedPlaces - combinedWins,
+            thirds = 0
+        )
+        
+        val conditionStats = PerformanceStats(
+            runs = conditionRuns,
+            wins = conditionWins,
+            seconds = conditionPlaces - conditionWins,
+            thirds = 0
+        )
+        
+        println("🔧 FALLBACK STATS: Track=${trackStats.runs}:${trackStats.wins}-${trackStats.seconds}, Distance=${distanceStats.runs}:${distanceStats.wins}-${distanceStats.seconds}, Combined=${combinedStats.runs}:${combinedStats.wins}-${combinedStats.seconds}, Condition=${conditionStats.runs}:${conditionStats.wins}-${conditionStats.seconds}")
+        
+        return TrackDistanceStats(
+            trackStats = trackStats,
+            distanceStats = distanceStats,
+            combinedStats = combinedStats,
+            conditionStats = conditionStats
+        )
     }
     
     /**
@@ -1420,6 +1644,23 @@ class ScrapingService {
             println("   Text content: ${element.text().take(300)}...")
             
             val allText = element.text()
+            
+            // CRITICAL FIX: Exclude trials and jump outs - they are NOT real races!
+            // Log the full text for debugging
+            println("🔍 FULL TEXT FOR FILTERING: ${allText}")
+            
+            // Check for trial/jumpout indicators
+            val isTrial = allText.contains("Trial", ignoreCase = true) || 
+                         allText.contains("JumpOut", ignoreCase = true) ||
+                         allText.matches(Regex("^[TJ]\\s+\\d+.*", RegexOption.IGNORE_CASE))
+            
+            if (isTrial) {
+                println("⚠️ SKIPPING: This is a Trial or Jump Out, not a real race")
+                println("🔍 Text: ${allText.take(100)}...")
+                return null
+            } else {
+                println("✅ INCLUDING: This appears to be a real race")
+            }
             
             // Parse the specific Racing Australia format:
             // "7th of 11 BRAT 29Jun25 1500m Soft7 MDN-SW $37,500 ($750) John Allen 57.5kg Barrier 7 1st Tassron 59.5kg, 2nd Autumnheat 59.5kg 1:34.04 (600m 36.89), 7.9L, 5th@800m, 6th@400m, $10/$16/$15/$16"
@@ -2100,7 +2341,8 @@ class ScrapingService {
                         return TrackDistanceStats(
                             trackStats = trackStats,
                             distanceStats = distanceStats,
-                            combinedStats = combinedStats
+                            combinedStats = combinedStats,
+                            conditionStats = null
                         )
                     }
                 } else {
@@ -2129,7 +2371,8 @@ class ScrapingService {
                 return TrackDistanceStats(
                     trackStats = trackStats,
                     distanceStats = distanceStats,
-                    combinedStats = combinedStats
+                    combinedStats = combinedStats,
+                    conditionStats = null
                 )
             } else {
                 println("⚠️ Could not parse all track/distance statistics")

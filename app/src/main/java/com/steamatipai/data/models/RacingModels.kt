@@ -193,7 +193,8 @@ data class SpellPerformance(
 data class TrackDistanceStats(
     val trackStats: PerformanceStats,      // Performance at this track
     val distanceStats: PerformanceStats,   // Performance at this distance
-    val combinedStats: PerformanceStats    // Performance at this track AND distance
+    val combinedStats: PerformanceStats,   // Performance at this track AND distance
+    val conditionStats: PerformanceStats? = null  // Performance at this track condition
 )
 
 data class PerformanceStats(

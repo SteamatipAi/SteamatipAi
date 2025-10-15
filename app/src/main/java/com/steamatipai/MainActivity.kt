@@ -118,5 +118,28 @@ fun SteamaTipAiApp() {
                 }
             )
         }
+        
+        composable("results/{date}/{tracks}") { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date") ?: ""
+            val tracksData = backStackEntry.arguments?.getString("tracks") ?: ""
+            
+            // Parse the track data back into proper format
+            val selectedTracks = tracksData.split("|").filter { it.isNotEmpty() }.map { trackData ->
+                val parts = trackData.split("::")
+                if (parts.size >= 3) {
+                    parts[0] // Return the full key (e.g., "2025Aug30,NSW,Rosehill Gardens")
+                } else {
+                    trackData // Fallback to original data
+                }
+            }
+            
+            ResultsScreen(
+                selectedDate = date,
+                selectedTracks = selectedTracks,
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }

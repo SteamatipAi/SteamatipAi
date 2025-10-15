@@ -7,6 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,6 +50,11 @@ fun RaceSelectionScreen(
     var selectedRace by remember { mutableStateOf<RaceResult?>(null) }
     var startTime by remember { mutableStateOf(0L) }
     var elapsedTime by remember { mutableStateOf(0L) }
+    var savedScrollPosition by remember { mutableStateOf(0) }
+    
+    // Add scroll state to preserve position when returning from race detail
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val raceAnalysisService = remember { RaceAnalysisService() }
     val context = LocalContext.current
@@ -68,7 +76,14 @@ fun RaceSelectionScreen(
             onHorseClick = { horse ->
                 // Handle horse click - this will show the horse detail screen
             },
-            onBack = { selectedRace = null }
+            onBack = { 
+                selectedRace = null
+                // Simply restore the saved scroll position
+                coroutineScope.launch {
+                    println("🔍 Scroll Debug: Restoring scroll position to $savedScrollPosition")
+                    listState.animateScrollToItem(savedScrollPosition)
+                }
+            }
         )
         return
     }
@@ -325,6 +340,7 @@ fun RaceSelectionScreen(
         } else {
             // Race List
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 80.dp) // Add bottom padding for system UI
             ) {
@@ -358,7 +374,12 @@ fun RaceSelectionScreen(
                     items(races.sortedBy { it.race.raceNumber }) { raceResult ->
                         RaceSelectionCard(
                             raceResult = raceResult,
-                            onClick = { selectedRace = raceResult }
+                            onClick = { 
+                                // Save the current scroll position before navigating
+                                savedScrollPosition = listState.firstVisibleItemIndex
+                                println("🔍 Scroll Debug: Saved scroll position = $savedScrollPosition")
+                                selectedRace = raceResult
+                            }
                         )
                     }
                     
