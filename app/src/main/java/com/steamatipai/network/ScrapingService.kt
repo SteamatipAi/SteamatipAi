@@ -54,18 +54,21 @@ class ScrapingService {
             val doc = Jsoup.parse(html)
             val tracks = mutableListOf<Track>()
             
-            // Look for track links in the calendar - both Form.aspx (upcoming races) and Results.aspx (completed races)
+            // CRITICAL: Find tracks from BOTH Form.aspx and Results.aspx links
+            // (Racing Australia shows Results.aspx for tracks where racing has started)
+            // BUT we'll always construct Form.aspx URLs to use the pre-race form data
             val trackElements = doc.select("a[href*='Form.aspx'], a[href*='Results.aspx']")
-            println("🔍 Found ${trackElements.size} track link elements")
+            println("🔍 Found ${trackElements.size} track link elements (will convert all to Form.aspx)")
             
             // If no tracks found, try alternative selectors
             if (trackElements.isEmpty()) {
-                println("⚠️ No tracks found with 'Form.aspx' or 'Results.aspx' selector, trying alternatives...")
+                println("⚠️ No tracks found with standard selectors, trying alternatives...")
                 val altSelectors = listOf(
                     "a[href*='form']",
                     "a[href*='Form']",
                     "a[href*='Results']",
                     "a[href*='results']",
+                    "a[href*='FreeFields']",
                     "a[href*='race']",
                     "a[href*='Race']",
                     "a[href*='track']",
@@ -117,17 +120,23 @@ class ScrapingService {
                                 // Count races for this track
                                 val raceCount = countRacesForTrack(doc, fullTrackName)
                                 
+                                // CRITICAL: Always construct Form.aspx URL, even if we found this track via Results.aspx
+                                // This ensures we use pre-race form data, never results with today's races
+                                val encodedKey = key.replace(",", "%2C").replace(" ", "%20")
+                                val formUrl = "${NetworkConfig.BASE_URL}/FreeFields/Form.aspx?Key=$encodedKey&recentForm=Y"
+                                
                                 val track = Track(
                                     key = key, // This is the decoded key: "2025Aug30,NSW,Grafton"
                                     name = fullTrackName,
                                     state = state,
                                     raceCount = raceCount,
-                                    url = href
+                                    url = formUrl  // Always use Form.aspx, never Results.aspx
                                 )
                                 
                                 tracks.add(track)
                                 println("🏁 Found track: ${track.name} (${track.state}) - ${track.raceCount} races")
                                 println("   Key: $key")
+                                println("   URL: $formUrl (Form.aspx - pre-race form)")
                             } else {
                                 println("⏰ Skipping track $fullTrackName - date $trackDate doesn't match selected date $dateStr")
                             }
@@ -1255,11 +1264,13 @@ class ScrapingService {
         horseCode: String,
         stage: String,
         key: String,
-        raceEntry: String
+        raceEntry: String,
+        formString: String = ""
     ): HorseForm? {
         return try {
             println("🔍 Scraping horse form for code: $horseCode")
             println("🔍 Stage: $stage, Key: $key, Race Entry: $raceEntry")
+            println("🔍 Form string provided: '$formString'")
             
             val horseFormUrl = NetworkConfig.buildHorseFormUrl(horseCode, stage, key, raceEntry)
             println("🌐 Horse form URL: $horseFormUrl")
@@ -1343,7 +1354,7 @@ class ScrapingService {
                 println("   Text preview: ${table.text().take(200)}...")
             }
             
-            val horseForm = parseHorseFormFromDocument(doc, horseCode)
+            val horseForm = parseHorseFormFromDocument(doc, horseCode, formString)
             
             if (horseForm != null) {
                 println("✅ Successfully parsed horse form with ${horseForm.last5Races.size} recent races")
@@ -1379,7 +1390,7 @@ class ScrapingService {
     /**
      * Parse horse form from HTML document
      */
-    private fun parseHorseFormFromDocument(doc: Document, horseCode: String): HorseForm? {
+    private fun parseHorseFormFromDocument(doc: Document, horseCode: String, formString: String = ""): HorseForm? {
         try {
             // Parse last 5 races
             val last5Races = parseRecentRaces(doc)
@@ -1396,13 +1407,32 @@ class ScrapingService {
             // Parse track/distance statistics
             val trackDistanceStats = parseTrackDistanceStats(doc)
             
+            // CRITICAL FIX: Parse form string into individual races
+            // If form string is provided, use form string races but enhance them with HTML data (dates, track conditions)
+            // Otherwise fall back to HTML-parsed races
+            val allRaces = if (formString.isNotEmpty()) {
+                println("🔍 FORM PARSER: Using provided form string '$formString'")
+                val formRaces = parseFormStringToRaces(formString)
+                println("🔍 FORM PARSER: Parsed ${formRaces.size} races from form string")
+                
+                // ENHANCEMENT: Try to enhance form string races with HTML data (dates, track conditions)
+                val enhancedRaces = enhanceFormRacesWithHtmlData(formRaces, last5Races)
+                println("🔍 FORM PARSER: Enhanced ${enhancedRaces.size} races with HTML data")
+                enhancedRaces
+            } else {
+                println("🔍 FORM PARSER: No form string provided, using ${last5Races.size} HTML races")
+                last5Races
+            }
+            
+            println("🔍 Form parsing result: Total races=${allRaces.size}")
+            
             // CRITICAL FALLBACK: If HTML parsing failed, build stats from race history
             // But only build general stats, NOT track-specific stats since we don't know current race details
-            val finalTrackDistanceStats = trackDistanceStats ?: buildGeneralStatsFromRaces(last5Races)
+            val finalTrackDistanceStats = trackDistanceStats ?: buildGeneralStatsFromRaces(allRaces)
             
             return HorseForm(
                 horseId = horseCode,
-                last5Races = last5Races,
+                last5Races = allRaces,
                 trackDistanceHistory = trackDistanceHistory,
                 upResults = upResults,
                 trialSectionalTimes = trialSectionalTimes,
@@ -1724,19 +1754,22 @@ class ScrapingService {
                 return null
             }
             
-            // Extract track (3-4 letter code like "BRAT")
+            // Extract track (3-4 letter code like "W FM") - comes after position
             val trackMatch = Regex("\\d+(?:st|nd|rd|th)\\s+of\\s+\\d+\\s+([A-Z]{3,4})\\s+").find(allText)
             if (trackMatch != null) {
                 track = trackMatch.groupValues[1].trim()
                 println("✅ Found track: $track")
             }
             
-            // Extract date (format like "29Jun25")
+            // Extract date (format like "24Sep25") - comes after track code
             val dateMatch = Regex("([A-Z]{3,4})\\s+(\\d{1,2}[A-Za-z]{3}\\d{2})").find(allText)
             if (dateMatch != null) {
                 val dateStr = dateMatch.groupValues[2].trim()
                 date = parseRacingAustraliaDate(dateStr)
                 println("✅ Found date: $dateStr -> $date")
+            } else {
+                println("⚠️ Could not find date in race result")
+                println("🔍 DEBUG: Text being searched: '${allText.take(200)}...'")
             }
             
             // Extract distance (format like "1500m")
@@ -2082,6 +2115,122 @@ class ScrapingService {
     }
 
     /**
+     * CRITICAL FIX: Parse form string (like "7x3", "2x1x4") into individual RaceResultDetail objects
+     * This fixes the issue where horses like Miss Lola only show 1 race instead of multiple races
+     */
+    private fun parseRacesFromFormString(horseCode: String, existingRaces: List<RaceResultDetail>): List<RaceResultDetail> {
+        println("🔍 FORM STRING PARSER: Starting for $horseCode")
+        
+        // We need to get the form string from the horse data, but we don't have direct access here
+        // For now, let's create a simple parser that can handle common patterns
+        // This is a temporary solution - we need to pass the form string to this function
+        
+        val parsedRaces = mutableListOf<RaceResultDetail>()
+        
+        // TODO: We need to modify the function signature to accept the form string
+        // For now, let's implement the parsing logic structure
+        
+        println("🔍 FORM STRING PARSER: Need form string parameter to parse")
+        
+        return parsedRaces
+    }
+    
+    /**
+     * Extract form string from the horse form document
+     * Looks for patterns like "7x3", "2x1x4" in the HTML
+     */
+    private fun extractFormStringFromDocument(doc: Document): String {
+        println("🔍 FORM EXTRACTOR: Looking for form string in document")
+        
+        // Look for form strings in various places in the document
+        val allText = doc.text()
+        
+        // Pattern to match form strings: numbers and x's
+        val formPattern = Regex("([0-9xX]+)")
+        val matches = formPattern.findAll(allText).toList()
+        
+        // Find the longest match that looks like a form string
+        val potentialForms = matches.map { it.value }.filter { formStr ->
+            formStr.contains("x", ignoreCase = true) && 
+            formStr.contains(Regex("[0-9]")) && 
+            formStr.length >= 2 && 
+            formStr.length <= 10
+        }
+        
+        val formString = potentialForms.maxByOrNull { it.length } ?: ""
+        
+        if (formString.isNotEmpty()) {
+            println("🔍 FORM EXTRACTOR: Found form string '$formString'")
+        } else {
+            println("🔍 FORM EXTRACTOR: No form string found")
+        }
+        
+        return formString
+    }
+    
+    /**
+     * Parse a form string like "7x3" into individual race positions
+     * Example: "7x3" -> [RaceResultDetail(position=7), RaceResultDetail(position=3)]
+     */
+    private fun parseFormStringToRaces(formStr: String): List<RaceResultDetail> {
+        println("🔍 FORM PARSER: Parsing form string '$formStr'")
+        
+        val races = mutableListOf<RaceResultDetail>()
+        
+        if (formStr.isEmpty()) {
+            println("🔍 FORM PARSER: Empty form string")
+            return races
+        }
+        
+        // CRITICAL: Only use races AFTER the last spell (X)
+        // Example: "214X3361X652" -> only use "652" (after last X)
+        // Find the last occurrence of 'x' or 'X'
+        val lastSpellIndex = maxOf(
+            formStr.lastIndexOf('x'),
+            formStr.lastIndexOf('X')
+        )
+        
+        val relevantForm = if (lastSpellIndex >= 0) {
+            // Extract everything after the last spell
+            val afterLastSpell = formStr.substring(lastSpellIndex + 1)
+            println("🔍 FORM PARSER: Found spell at index $lastSpellIndex, using races after: '$afterLastSpell'")
+            afterLastSpell
+        } else {
+            // No spell found, use entire form string
+            println("🔍 FORM PARSER: No spell found, using entire form: '$formStr'")
+            formStr
+        }
+        
+        // Now parse each character as a race position
+        // The rightmost character is the most recent race
+        // Example: "652" means 2 (most recent), 5, 6 (oldest)
+        relevantForm.reversed().forEachIndexed { index, char ->
+            if (char.isDigit()) {
+                val position = char.toString().toInt()
+                if (position in 1..9) {
+                    val race = RaceResultDetail(
+                        position = position,
+                        margin = null,
+                        track = "UNKNOWN",
+                        distance = 0,
+                        trackCondition = "UNKNOWN",
+                        sectionalTime = null,
+                        date = null, // We don't have dates from form string
+                        jockey = "UNKNOWN",
+                        trainer = "UNKNOWN",
+                        raceClass = "UNKNOWN"
+                    )
+                    races.add(race)
+                    println("🔍 FORM PARSER: Added race ${index + 1} with position $position")
+                }
+            }
+        }
+        
+        println("🔍 FORM PARSER: Created ${races.size} races from form string '$formStr' (relevant part: '$relevantForm')")
+        return races
+    }
+    
+    /**
      * Build track URL for Racing Australia
      */
     private fun buildTrackUrl(track: Track, date: Date): String {
@@ -2362,17 +2511,23 @@ class ScrapingService {
             // Parse Track/Dist: X:Y-Z-W format
             val combinedStats = parsePerformanceStats(statsSection, "Track/Dist:")
             
+            // NEW: Parse track condition statistics (Good:, Heavy:, Soft:, Firm:, Synthetic:)
+            val conditionStats = parseTrackConditionStats(statsSection)
+            
             if (trackStats != null && distanceStats != null && combinedStats != null) {
                 println("✅ Successfully parsed track/distance statistics:")
                 println("   Track: ${trackStats.runs}:${trackStats.wins}-${trackStats.seconds}-${trackStats.thirds}")
                 println("   Distance: ${distanceStats.runs}:${distanceStats.wins}-${distanceStats.seconds}-${distanceStats.thirds}")
                 println("   Combined: ${combinedStats.runs}:${combinedStats.wins}-${combinedStats.seconds}-${combinedStats.thirds}")
+                if (conditionStats != null) {
+                    println("   Track Conditions: ${conditionStats.runs}:${conditionStats.wins}-${conditionStats.seconds}-${conditionStats.thirds}")
+                }
                 
                 return TrackDistanceStats(
                     trackStats = trackStats,
                     distanceStats = distanceStats,
                     combinedStats = combinedStats,
-                    conditionStats = null
+                    conditionStats = conditionStats
                 )
             } else {
                 println("⚠️ Could not parse all track/distance statistics")
@@ -2443,6 +2598,118 @@ class ScrapingService {
         } catch (e: Exception) {
             println("❌ Error parsing $label statistics from text: ${e.message}")
             return null
+        }
+    }
+    
+    /**
+     * Parse track condition statistics from HTML element
+     * Looks for patterns like "Good: 2:0-1-1", "Heavy: 1:0-0-0", etc.
+     * Returns stats for the most common condition (highest number of runs)
+     */
+    private fun parseTrackConditionStats(element: Element): PerformanceStats? {
+        try {
+            println("🔍 Parsing track condition statistics...")
+            
+            val text = element.text()
+            println("🔍 DEBUG: Searching for track condition patterns in text: ${text.take(200)}...")
+            
+            // Track conditions to look for
+            val trackConditions = listOf("Good", "Heavy", "Soft", "Firm", "Synthetic")
+            
+            var bestCondition: String? = null
+            var bestStats: PerformanceStats? = null
+            var maxRuns = 0
+            
+            for (condition in trackConditions) {
+                val pattern = Regex("$condition:\\s*(\\d+):(\\d+)-(\\d+)-(\\d+)")
+                val match = pattern.find(text)
+                
+                if (match != null) {
+                    val runs = match.groupValues[1].toInt()
+                    val wins = match.groupValues[2].toInt()
+                    val seconds = match.groupValues[3].toInt()
+                    val thirds = match.groupValues[4].toInt()
+                    
+                    println("✅ Found $condition: $runs:$wins-$seconds-$thirds")
+                    
+                    // Keep track of the condition with the most runs
+                    if (runs > maxRuns) {
+                        maxRuns = runs
+                        bestCondition = condition
+                        bestStats = PerformanceStats(
+                            runs = runs,
+                            wins = wins,
+                            seconds = seconds,
+                            thirds = thirds
+                        )
+                    }
+                }
+            }
+            
+            if (bestStats != null) {
+                println("✅ Using track condition stats for '$bestCondition': ${bestStats.runs}:${bestStats.wins}-${bestStats.seconds}-${bestStats.thirds}")
+                return bestStats
+            } else {
+                println("⚠️ No track condition statistics found")
+                return null
+            }
+            
+        } catch (e: Exception) {
+            println("❌ Error parsing track condition statistics: ${e.message}")
+            return null
+        }
+    }
+    
+    /**
+     * Enhance form string races with HTML data (dates, track conditions, etc.)
+     * This combines the accuracy of form string positions with the richness of HTML data
+     */
+    private fun enhanceFormRacesWithHtmlData(formRaces: List<RaceResultDetail>, htmlRaces: List<RaceResultDetail>): List<RaceResultDetail> {
+        try {
+            println("🔍 ENHANCER: Starting enhancement of ${formRaces.size} form races with ${htmlRaces.size} HTML races")
+            
+            val enhancedRaces = mutableListOf<RaceResultDetail>()
+            
+            // For each form race, try to find a matching HTML race
+            formRaces.forEachIndexed { index, formRace ->
+                println("🔍 ENHANCER: Processing form race ${index + 1} (Position=${formRace.position})")
+                
+                // Try to find HTML race with matching position
+                val matchingHtmlRace = htmlRaces.find { htmlRace ->
+                    htmlRace.position == formRace.position
+                }
+                
+                if (matchingHtmlRace != null) {
+                    println("✅ ENHANCER: Found matching HTML race for position ${formRace.position}")
+                    
+                    // Create enhanced race with form position but HTML data
+                    val enhancedRace = RaceResultDetail(
+                        position = formRace.position, // Use form position (correct)
+                        margin = matchingHtmlRace.margin, // Use HTML margin
+                        track = matchingHtmlRace.track, // Use HTML track
+                        distance = matchingHtmlRace.distance, // Use HTML distance
+                        trackCondition = matchingHtmlRace.trackCondition, // Use HTML track condition
+                        sectionalTime = matchingHtmlRace.sectionalTime, // Use HTML sectional time
+                        date = matchingHtmlRace.date, // CRITICAL: Use HTML date for freshness calculation
+                        jockey = matchingHtmlRace.jockey, // Use HTML jockey
+                        trainer = matchingHtmlRace.trainer, // Use HTML trainer
+                        raceClass = matchingHtmlRace.raceClass // Use HTML race class
+                    )
+                    
+                    enhancedRaces.add(enhancedRace)
+                    println("✅ ENHANCER: Enhanced race ${index + 1} with HTML data (Date=${enhancedRace.date})")
+                } else {
+                    println("⚠️ ENHANCER: No matching HTML race found for position ${formRace.position}, using form race as-is")
+                    enhancedRaces.add(formRace) // Use form race without enhancement
+                }
+            }
+            
+            println("✅ ENHANCER: Enhanced ${enhancedRaces.size} races total")
+            return enhancedRaces
+            
+        } catch (e: Exception) {
+            println("❌ Error enhancing form races with HTML data: ${e.message}")
+            return formRaces // Return original form races if enhancement fails
         }
     }
 } 

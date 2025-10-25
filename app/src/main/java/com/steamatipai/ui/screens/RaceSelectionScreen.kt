@@ -667,8 +667,8 @@ fun exportRaceResultsToExcel(
             }
         }
         
-        // Call the ExcelExporter with the prepared data
-        ExcelExporter().exportFullResultsToExcel(context, exportData, selectedDate)
+        // Call the ExcelExporter with the full results data
+        ExcelExporter().exportFullResultsToExcel(context, results, selectedDate)
         
     } catch (e: Exception) {
         println("❌ Error exporting full results to Excel: ${e.message}")

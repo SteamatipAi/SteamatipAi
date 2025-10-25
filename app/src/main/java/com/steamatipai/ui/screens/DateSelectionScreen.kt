@@ -57,6 +57,16 @@ fun DateSelectionScreen(
                 )
         )
         
+        // Subtle version indicator at top center
+        Text(
+            text = "v2.3",
+            color = Color(0xFFFFD700), // Gold color
+            fontSize = 12.sp,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 12.dp)
+        )
+        
         // Content
         Column(
             modifier = Modifier

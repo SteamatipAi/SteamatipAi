@@ -332,7 +332,8 @@ class RaceAnalysisService(
                     horseCode = horseCode,
                     stage = "FinalFields",
                     key = key,
-                    raceEntry = raceEntry
+                    raceEntry = raceEntry,
+                    formString = horse.form // Pass the form string we already extracted
                 )
 
                 if (horseForm != null) {

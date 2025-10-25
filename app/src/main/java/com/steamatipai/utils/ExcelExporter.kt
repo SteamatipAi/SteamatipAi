@@ -153,29 +153,83 @@ class ExcelExporter {
     
 fun exportFullResultsToExcel(
     context: Context,
-    exportData: List<Array<String>>,
+    results: List<RaceResult>,
     selectedDate: String
 ) {
     try {
+        // Prepare data for Excel export
+        val exportData = mutableListOf<Array<String>>()
+        
+        // Group results by track for better organization
+        val resultsByTrack = results.groupBy { it.race.venue }
+        
+        resultsByTrack.forEach { (trackName, trackResults) ->
+            trackResults.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+                // Get all horses for this race
+                val allHorses = raceResult.allHorses.sortedByDescending { it.score }
+                
+                allHorses.forEachIndexed { horseIndex, scoredHorse ->
+                    // Only the top horse gets the betting recommendation
+                    val betType = if (horseIndex == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                        raceResult.bettingRecommendations[0].betType
+                    } else BetType.CONSIDER
+                    
+                    val betTypeText = when (betType) {
+                        BetType.SUPER_BET -> "SUPER BET"
+                        BetType.BEST_BET -> "BEST BET"
+                        BetType.GOOD_BET -> "GOOD BET"
+                        else -> ""
+                    }
+                    
+                    val row = arrayOf(
+                        raceResult.race.venue,                                    // Track
+                        raceResult.race.raceNumber.toString(),                   // Race #
+                        raceResult.race.name,                                    // Race Name
+                        raceResult.race.time,                                    // Time
+                        "${raceResult.race.distance}m",                          // Distance
+                        scoredHorse.horse.number.toString(),                     // Horse #
+                        scoredHorse.horse.name,                                  // Horse Name
+                        String.format("%.1f", scoredHorse.score),                // Score
+                        betTypeText,                                             // Bet Type
+                        "",                                                      // Results (empty for user input)
+                        "",                                                      // Price (empty for user input)
+                        scoredHorse.horse.jockey,                                // Jockey
+                        scoredHorse.horse.trainer,                               // Trainer
+                        scoredHorse.horse.barrier.toString(),                     // Barrier
+                        "${scoredHorse.horse.weight}kg"                          // Weight
+                    )
+                    exportData.add(row)
+                }
+            }
+        }
+        
         // Initialize Aspose.Cells workbook
         val workbook = Workbook()
-        val worksheet = workbook.worksheets[0]
-        worksheet.name = "Complete Race Analysis"
+        
+        // Create main results worksheet
+        val mainWorksheet = workbook.worksheets[0]
+        mainWorksheet.name = "Complete Race Analysis"
+        
+        // Create new worksheet for law breakdowns
+        val lawBreakdownWorksheet = workbook.worksheets.add("Law Breakdown Analysis")
         
         // Create all professional styles
         val styles = createFullResultsStyles(workbook, exportData)
         
         // Create header with professional formatting
-        createFullResultsHeader(worksheet, styles)
+        createFullResultsHeader(mainWorksheet, styles)
         
         // Add all data with EXACT formatting
-        addFullResultsData(worksheet, exportData, styles)
+        addFullResultsData(mainWorksheet, exportData, styles)
         
         // Format columns EXACTLY as specified
-        formatFullResultsColumns(worksheet, exportData)
+        formatFullResultsColumns(mainWorksheet, exportData)
         
         // Enable filtering on ALL rows
-        enableFullResultsFiltering(worksheet)
+        enableFullResultsFiltering(mainWorksheet)
+        
+        // Create law breakdown analysis
+        createLawBreakdownAnalysis(lawBreakdownWorksheet, results, styles)
         
         // Save as true Excel file with timestamp
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -291,11 +345,11 @@ private fun createFullResultsStyles(workbook: Workbook, exportData: List<Array<S
 }
 
 private fun createFullResultsHeader(worksheet: Worksheet, styles: FullResultsStyles) {
-    val headers = arrayOf(
-        "Track", "Race #", "Race Name", "Time", "Distance", 
-        "Horse #", "Horse Name", "Score", "Position", "Bet Type", 
-        "Jockey", "Trainer", "Barrier", "Weight"
-    )
+        val headers = arrayOf(
+            "Track", "Race #", "Race Name", "Time", "Distance",
+            "Horse #", "Horse Name", "Score", "Bet Type",
+            "Results", "Price", "Jockey", "Trainer", "Barrier", "Weight"
+        )
     
     headers.forEachIndexed { index, header ->
         val cell = worksheet.cells[0, index]
@@ -313,32 +367,39 @@ private fun addFullResultsData(
         val rowIndex = index + 1
         
         // Determine bet type style
-        val betTypeText = row[9] // Column J: Bet Type
-        val betTypeStyle = when (betTypeText) {
-            "Super Bet" -> styles.superBet
-            "Best Bet" -> styles.bestBet
-            "Good Bet" -> styles.goodBet
+        val betTypeText = row[8] // Column I: Bet Type (updated index after removing Position column)
+        val betTypeStyle = when (betTypeText.trim().uppercase()) {
+            "SUPER BET" -> styles.superBet
+            "BEST BET" -> styles.bestBet
+            "GOOD BET" -> styles.goodBet
             else -> styles.centered
         }
         
         val trackStyle = styles.trackStyles[row[0]] ?: styles.regular
         
+        // Set row height to accommodate wrapped text
+        worksheet.cells.setRowHeightPixel(rowIndex, 60)
+        
+        // Determine if this row should be shaded based on bet type
+        val isSpecialBet = betTypeText.trim().uppercase() in listOf("SUPER BET", "BEST BET", "GOOD BET")
+        
         // Apply EXACT formatting as you specified:
         val cellConfigs = listOf(
-            CellConfig(0, row[0], trackStyle),                      // A: Track - color coded
-            CellConfig(1, row[1], styles.centered),                // B: Race # - centered
-            CellConfig(2, row[2], styles.textWrap),                // C: Race name - wrapped
-            CellConfig(3, row[3], styles.centered),                // D: Time - centered
-            CellConfig(4, row[4], styles.centered),                // E: Distance - centered
-            CellConfig(5, row[5], styles.centered),                // F: Horse # - centered
-            CellConfig(6, row[6], styles.regular),                 // G: Horse name - auto-width
-            CellConfig(7, row[7], styles.centered),                // H: Score - centered
-            CellConfig(8, row[8], styles.centered),                // I: Position - centered
-            CellConfig(9, row[9], betTypeStyle),                   // J: Bet type - color coded
-            CellConfig(10, row[10], styles.regular),               // K: Jockey - auto-width
-            CellConfig(11, row[11], styles.regular),               // L: Trainer - auto-width
-            CellConfig(12, row[12], styles.centered),              // M: Barrier - centered
-            CellConfig(13, row[13], styles.centered)               // N: Weight - centered
+            CellConfig(0, row[0], if (isSpecialBet) betTypeStyle else trackStyle), // A: Track - color coded or bet type colored
+            CellConfig(1, row[1], if (isSpecialBet) betTypeStyle else styles.centered), // B: Race # - centered or bet type colored
+            CellConfig(2, row[2], if (isSpecialBet) betTypeStyle else styles.textWrap), // C: Race name - wrapped or bet type colored
+            CellConfig(3, row[3], if (isSpecialBet) betTypeStyle else styles.centered), // D: Time - centered or bet type colored
+            CellConfig(4, row[4], if (isSpecialBet) betTypeStyle else styles.centered), // E: Distance - centered or bet type colored
+            CellConfig(5, row[5], if (isSpecialBet) betTypeStyle else styles.centered), // F: Horse # - centered or bet type colored
+            CellConfig(6, row[6], if (isSpecialBet) betTypeStyle else styles.regular), // G: Horse name - auto-width or bet type colored
+            CellConfig(7, row[7], if (isSpecialBet) betTypeStyle else styles.centered), // H: Score - centered or bet type colored
+            CellConfig(8, row[8], betTypeStyle),                    // I: Bet type - color coded
+            CellConfig(9, row[9], if (isSpecialBet) betTypeStyle else styles.centered), // J: Results - centered or bet type colored
+            CellConfig(10, row[10], if (isSpecialBet) betTypeStyle else styles.centered), // K: Price - centered or bet type colored
+            CellConfig(11, row[11], if (isSpecialBet) betTypeStyle else styles.regular), // L: Jockey - auto-width or bet type colored
+            CellConfig(12, row[12], if (isSpecialBet) betTypeStyle else styles.regular), // M: Trainer - auto-width or bet type colored
+            CellConfig(13, row[13], if (isSpecialBet) betTypeStyle else styles.centered), // N: Barrier - centered or bet type colored
+            CellConfig(14, row[14], if (isSpecialBet) betTypeStyle else styles.centered)  // O: Weight - centered or bet type colored
         )
         
         cellConfigs.forEach { config ->
@@ -363,8 +424,8 @@ private fun formatFullResultsColumns(worksheet: Worksheet, exportData: List<Arra
     val trackNames = exportData.map { it[0] }
     val raceNames = exportData.map { it[2] }
     val horseNames = exportData.map { it[6] }
-    val jockeyNames = exportData.map { it[10] }
-    val trainerNames = exportData.map { it[11] }
+    val jockeyNames = exportData.map { it[11] } // Updated column index (was 12)
+    val trainerNames = exportData.map { it[12] } // Updated column index (was 13)
     
     // Auto-fit all columns first
     worksheet.autoFitColumns()
@@ -374,30 +435,46 @@ private fun formatFullResultsColumns(worksheet: Worksheet, exportData: List<Arra
     val maxTrackWidth = (trackNames.maxOfOrNull { it.length } ?: 15) * 1.5
     worksheet.cells.setColumnWidthPixel(0, (maxTrackWidth * 8).toInt().coerceAtLeast(120))
     
-    // C: Wide enough for longest race name with wrapping
-    val maxRaceWidth = (raceNames.maxOfOrNull { it.length } ?: 25) * 1.2
-    worksheet.cells.setColumnWidthPixel(2, (maxRaceWidth * 8).toInt().coerceAtLeast(200))
+    // C: Race name width - make it wider to accommodate full race names
+    val maxRaceWidth = (raceNames.maxOfOrNull { it.length } ?: 25) * 1.2 // Increased multiplier
+    worksheet.cells.setColumnWidthPixel(2, (maxRaceWidth * 8).toInt().coerceAtLeast(200).coerceAtMost(300))
     
     // G: Wide enough for longest horse name
     val maxHorseWidth = (horseNames.maxOfOrNull { it.length } ?: 20) * 1.2
     worksheet.cells.setColumnWidthPixel(6, (maxHorseWidth * 8).toInt().coerceAtLeast(150))
     
-    // J: Wide enough for bet type wording + color coding
-    worksheet.cells.setColumnWidthPixel(9, 120)
+    // I: Wide enough for bet type wording + color coding
+    worksheet.cells.setColumnWidthPixel(8, 120)
     
-    // K: Wide enough for longest jockey name
-    val maxJockeyWidth = (jockeyNames.maxOfOrNull { it.length } ?: 15) * 1.2
-    worksheet.cells.setColumnWidthPixel(10, (maxJockeyWidth * 8).toInt().coerceAtLeast(120))
+    // J: Results column - compact width for dropdown
+    worksheet.cells.setColumnWidthPixel(9, 80)
     
-    // L: Wide enough for longest trainer name
-    val maxTrainerWidth = (trainerNames.maxOfOrNull { it.length } ?: 15) * 1.2
-    worksheet.cells.setColumnWidthPixel(11, (maxTrainerWidth * 8).toInt().coerceAtLeast(120))
+    // K: Price column - compact width for numbers
+    worksheet.cells.setColumnWidthPixel(10, 80)
+    
+    // L: Compact jockey name width (reduced from excessive)
+    val maxJockeyWidth = (jockeyNames.maxOfOrNull { it.length } ?: 15) * 0.8 // Reduced multiplier
+    worksheet.cells.setColumnWidthPixel(11, (maxJockeyWidth * 8).toInt().coerceAtLeast(80).coerceAtMost(120))
+    
+    // M: Compact trainer name width (reduced from excessive)
+    val maxTrainerWidth = (trainerNames.maxOfOrNull { it.length } ?: 15) * 0.8 // Reduced multiplier
+    worksheet.cells.setColumnWidthPixel(12, (maxTrainerWidth * 8).toInt().coerceAtLeast(80).coerceAtMost(120))
 }
 
 private fun enableFullResultsFiltering(worksheet: Worksheet) {
     val lastRow = worksheet.cells.maxDataRow
     if (lastRow > 0) {
-        worksheet.autoFilter.range = "A1:N${lastRow + 1}"
+        worksheet.autoFilter.range = "A1:O${lastRow + 1}" // Updated to remove Position column
+        
+        // Freeze the header row
+        worksheet.freezePanes(1, 0, 1, 0) // Freeze row 1 (header row)
+        
+        // Results column (K) is ready for manual WIN/PLACE/PLNTD input
+        // You can manually add dropdown validation in Excel:
+        // 1. Select column K (Results)
+        // 2. Go to Data > Data Validation
+        // 3. Choose "List" and enter: WIN,PLACE,PLNTD
+        println("✅ Results column ready for WIN/PLACE/PLNTD input")
     }
 }
 
@@ -421,13 +498,16 @@ private fun shareFullResultsExcelFile(context: Context, file: File, selectedDate
                     "✅ All rows with filtering enabled\n" +
                     "✅ Track names auto-width + color coded\n" +
                     "✅ Race numbers centered\n" +
-                    "✅ Race names auto-width with text wrapping\n" +
+                    "✅ Race names compact width with text wrapping\n" +
                     "✅ Time, Distance, Horse# centered\n" +
                     "✅ Horse names auto-width\n" +
                     "✅ Scores and positions centered\n" +
                     "✅ Bet types color coded (Green=Super, Blue=Best, Purple=Good)\n" +
-                    "✅ Jockey/Trainer names auto-width\n" +
+                    "✅ Results column with WIN/PLACE/PLNTD dropdown validation\n" +
+                    "✅ Price column for payout amounts\n" +
+                    "✅ Jockey/Trainer names compact width\n" +
                     "✅ Barrier/Weight centered\n" +
+                    "✅ Law Breakdown Analysis tab with individual scoring\n" +
                     "✅ True Excel .xlsx format with ALL formatting automatically applied\n" +
                     "✅ Complete field analysis with ALL horses included\n" +
                     "📊 File size: ${String.format("%.0f", fileSizeMB * 1024)} KB")
@@ -516,7 +596,7 @@ private fun createProfessionalHeader(worksheet: Worksheet, styles: ExcelStyles) 
                 BetType.SUPER_BET -> "SUPER BET"
                 BetType.BEST_BET -> "BEST BET"
                 BetType.GOOD_BET -> "GOOD BET"
-                else -> "CONSIDER"
+                        else -> ""
             }
             
             val betTypeStyle = when (betType) {
@@ -602,6 +682,9 @@ private fun createProfessionalHeader(worksheet: Worksheet, styles: ExcelStyles) 
         val lastRow = worksheet.cells.maxDataRow
         if (lastRow > 0) {
             worksheet.autoFilter.range = "A1:M${lastRow + 1}"
+            
+            // Freeze the header row
+            worksheet.freezePanes(1, 0, 1, 0) // Freeze row 1 (header row)
         }
     }
     
@@ -654,14 +737,164 @@ private fun createProfessionalHeader(worksheet: Worksheet, styles: ExcelStyles) 
         val style: Style
     )
     
-    private data class ExcelStyles(
-        val header: Style,
-        val trackStyles: Map<String, Style>,
-        val superBet: Style,
-        val bestBet: Style,
-        val goodBet: Style,
-        val centered: Style,
-        val textWrap: Style,
-        val regular: Style
+private fun createLawBreakdownAnalysis(
+    worksheet: Worksheet,
+    results: List<RaceResult>,
+    styles: FullResultsStyles
+) {
+    // Create headers for law breakdown
+    val headers = arrayOf(
+        "Track", "Race #", "Horse #", "Horse Name", "Total Score",
+        "L1: Recent Form", "L1b: 1st Up", "L2: 2nd Up", "L2b: 2nd Up Recent Form", "L3: Class Suitability", 
+        "L4: Distance Success", "L5: Track Success", "L6: Track+Distance", "L7: Sectional Time",
+        "L8: Barrier", "L9: Jockey", "L10: Trainer", "L11: Combination",
+        "L12: Track Condition", "L13: Weight Advantage", "L14: Freshness",
+        "Scoring Type", "Bet Type"
     )
+    
+    headers.forEachIndexed { index, header ->
+        val cell = worksheet.cells[0, index]
+        cell.putValue(header)
+        cell.setStyle(styles.header)
+    }
+    
+    var rowIndex = 1
+    
+    // Group results by track for better organization
+    val resultsByTrack = results.groupBy { it.race.venue }
+    
+    resultsByTrack.forEach { (trackName, trackResults) ->
+        trackResults.sortedBy { it.race.raceNumber }.forEach { raceResult ->
+            // Get all horses for this race
+            val allHorses = raceResult.allHorses.sortedByDescending { it.score }
+            
+            allHorses.forEachIndexed { horseIndex, scoredHorse ->
+                // Only the top horse gets the betting recommendation
+                val betType = if (horseIndex == 0 && raceResult.bettingRecommendations.isNotEmpty()) {
+                    raceResult.bettingRecommendations[0].betType
+                } else BetType.CONSIDER
+                
+                val betTypeText = when (betType) {
+                    BetType.SUPER_BET -> "SUPER BET"
+                    BetType.BEST_BET -> "BEST BET"
+                    BetType.GOOD_BET -> "GOOD BET"
+                        else -> ""
+                }
+                
+                val scoringType = when (scoredHorse.scoreBreakdown.type) {
+                    com.steamatipai.data.models.ScoringType.NORMAL -> "NORMAL"
+                    com.steamatipai.data.models.ScoringType.RETURNING_FROM_SPELL -> "SPELL HORSE"
+                    com.steamatipai.data.models.ScoringType.FIRST_UP -> "FIRST UP"
+                    else -> "UNKNOWN"
+                }
+                
+                val breakdown = scoredHorse.scoreBreakdown
+                
+                val row = arrayOf(
+                    raceResult.race.venue,                                    // Track
+                    raceResult.race.raceNumber.toString(),                   // Race #
+                    scoredHorse.horse.number.toString(),                     // Horse #
+                    scoredHorse.horse.name,                                  // Horse Name
+                    String.format("%.1f", scoredHorse.score),                // Total Score
+                    String.format("%.1f", breakdown.recentForm),             // L1: Recent Form
+                    String.format("%.1f", breakdown.firstUp),                 // L1b: 1st Up
+                    String.format("%.1f", breakdown.secondUp),                // L2: 2nd Up
+                    String.format("%.1f", breakdown.recentForm),             // L2b: 2nd Up Recent Form (same as L1 for 2nd up horses)
+                    String.format("%.1f", breakdown.classSuitability),       // L3: Class Suitability
+                    String.format("%.1f", breakdown.distanceSuccess),         // L4: Distance Success
+                    String.format("%.1f", breakdown.trackSuccess),            // L5: Track Success
+                    String.format("%.1f", breakdown.trackDistanceCombined),   // L6: Track+Distance
+                    String.format("%.1f", breakdown.sectionalTime),           // L7: Sectional Time
+                    String.format("%.1f", breakdown.barrier),                // L8: Barrier
+                    String.format("%.1f", breakdown.jockey),                 // L9: Jockey
+                    String.format("%.1f", breakdown.trainer),                // L10: Trainer
+                    String.format("%.1f", breakdown.combination),            // L11: Combination
+                    String.format("%.1f", breakdown.trackCondition),         // L12: Track Condition
+                    String.format("%.1f", breakdown.weightAdvantage),        // L13: Weight Advantage
+                    String.format("%.1f", breakdown.freshness),              // L14: Freshness
+                    scoringType,                                              // Scoring Type
+                    betTypeText                                               // Bet Type
+                )
+                
+                // Set row height for consistency
+                worksheet.cells.setRowHeightPixel(rowIndex, 60)
+                
+                // Determine if this row should be shaded based on bet type
+                val isSpecialBet = betType in listOf(BetType.SUPER_BET, BetType.BEST_BET, BetType.GOOD_BET)
+                val betTypeStyle = when (betType) {
+                    BetType.SUPER_BET -> styles.superBet
+                    BetType.BEST_BET -> styles.bestBet
+                    BetType.GOOD_BET -> styles.goodBet
+                    else -> styles.centered
+                }
+                
+                row.forEachIndexed { colIndex, value ->
+                    val cell = worksheet.cells[rowIndex, colIndex]
+                    cell.putValue(value)
+                    
+                    // Apply appropriate styling with row shading for special bets
+                    when (colIndex) {
+                        0 -> cell.setStyle(if (isSpecialBet) betTypeStyle else (styles.trackStyles[raceResult.race.venue] ?: styles.regular)) // Track
+                        1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 -> cell.setStyle(if (isSpecialBet) betTypeStyle else styles.centered) // Numeric columns
+                        3 -> cell.setStyle(if (isSpecialBet) betTypeStyle else styles.regular) // Horse Name
+                        22 -> cell.setStyle(if (isSpecialBet) betTypeStyle else styles.centered) // Scoring Type
+                        23 -> cell.setStyle(betTypeStyle) // Bet Type
+                    }
+                }
+                
+                rowIndex++
+            }
+        }
+    }
+    
+    // Auto-fit columns
+    worksheet.autoFitColumns()
+    
+    // Set consistent widths for first columns
+    worksheet.cells.setColumnWidthPixel(0, 120) // A: Track
+    worksheet.cells.setColumnWidthPixel(1, 80)  // B: Race #
+    worksheet.cells.setColumnWidthPixel(2, 80)  // C: Horse #
+    worksheet.cells.setColumnWidthPixel(3, 150) // D: Horse Name
+    worksheet.cells.setColumnWidthPixel(4, 120) // E: Total Score
+    
+    // Set wider widths for law columns (L1-L14) - headers need more space
+    for (i in 5..21) { // Columns F-V (L1-L14)
+        worksheet.cells.setColumnWidthPixel(i, 150) // Wider width for readable headers
+    }
+    
+    // Set readable width for Scoring Type column
+    worksheet.cells.setColumnWidthPixel(22, 120) // Scoring Type
+    
+    // Set readable width for Bet Type column  
+    worksheet.cells.setColumnWidthPixel(23, 120) // Bet Type
+    
+    // Enable filtering
+    val lastRow = worksheet.cells.maxDataRow
+    if (lastRow > 0) {
+        worksheet.autoFilter.range = "A1:X${lastRow + 1}"
+        
+        // Freeze the header row
+        worksheet.freezePanes(1, 0, 1, 0) // Freeze row 1 (header row)
+    }
+    
+    // Add summary footer
+    val summaryRow = rowIndex + 1
+    val summaryCell = worksheet.cells[summaryRow, 0]
+    summaryCell.putValue("Total Horses Analyzed: ${rowIndex - 1}")
+    summaryCell.setStyle(styles.header)
+    
+    val timestampCell = worksheet.cells[summaryRow + 1, 0]
+    timestampCell.putValue("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}")
+}
+
+private data class ExcelStyles(
+    val header: Style,
+    val trackStyles: Map<String, Style>,
+    val superBet: Style,
+    val bestBet: Style,
+    val goodBet: Style,
+    val centered: Style,
+    val textWrap: Style,
+    val regular: Style
+)
 }

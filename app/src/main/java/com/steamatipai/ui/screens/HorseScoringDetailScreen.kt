@@ -186,8 +186,11 @@ fun HorseScoringDetailScreen(
                 lawNumber = 3,
                 lawName = "Recent Form",
                 score = scoredHorse.scoreBreakdown.recentForm,
-                maxScore = 25.0,
-                description = "Performance in last 5 races with recency weighting (not used for spell horses)"
+                maxScore = if (scoredHorse.scoreBreakdown.type == com.steamatipai.data.models.ScoringType.RETURNING_FROM_SPELL) 8.0 else 25.0,
+                description = if (scoredHorse.scoreBreakdown.type == com.steamatipai.data.models.ScoringType.RETURNING_FROM_SPELL) 
+                    "First-up performance bonus for 2nd up horses (based on most recent race)" 
+                else 
+                    "Performance in last 5 races with recency weighting"
             )
             
             // Law 4: Class Suitability

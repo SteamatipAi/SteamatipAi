@@ -2,6 +2,8 @@ package com.steamatipai.scoring
 
 import com.steamatipai.data.models.*
 import java.util.*
+import java.util.Locale
+import java.text.SimpleDateFormat
 import kotlin.math.max
 import kotlin.math.min
 import java.io.File
@@ -73,6 +75,40 @@ class ScoringEngine {
         
         println("🏆 STARTING SCORING FOR: ${horse.name} in Race ${race.raceNumber} at ${race.venue}")
         
+        // COMPREHENSIVE DEBUG LOGGING for Miss Lola
+        if (horse.name.contains("MISS LOLA", ignoreCase = true)) {
+            try {
+                val debugFile = File("/sdcard/Download/MISS_LOLA_COMPLETE_DEBUG.txt")
+                val writer = FileWriter(debugFile, false) // Overwrite to start fresh
+                writer.appendLine("=" .repeat(100))
+                writer.appendLine("MISS LOLA COMPLETE DEBUG TRACE")
+                writer.appendLine("=" .repeat(100))
+                writer.appendLine("Horse Name: ${horse.name}")
+                writer.appendLine("Horse ID: ${horse.id}")
+                writer.appendLine("Race: ${race.raceNumber} at ${race.venue}")
+                writer.appendLine("Analysis Date: ${race.date}")
+                writer.appendLine("Horse Form Available: ${horseForm != null}")
+                
+                if (horseForm != null) {
+                    writer.appendLine("Horse Form ID: ${horseForm.horseId}")
+                    writer.appendLine("Total Races in Form: ${horseForm.last5Races.size}")
+                    writer.appendLine("")
+                    writer.appendLine("ALL RACES IN HORSE FORM:")
+                    horseForm.last5Races.forEachIndexed { index, raceResult ->
+                        writer.appendLine("  Race ${index + 1}: Position=${raceResult.position}, Date=${raceResult.date}, Track=${raceResult.track}")
+                        writer.appendLine("    Margin=${raceResult.margin}, Distance=${raceResult.distance}")
+                        writer.appendLine("    TrackCondition=${raceResult.trackCondition}, SectionalTime=${raceResult.sectionalTime}")
+                        writer.appendLine("    Jockey=${raceResult.jockey}, Trainer=${raceResult.trainer}")
+                        writer.appendLine("    RaceClass=${raceResult.raceClass}")
+                        writer.appendLine("")
+                    }
+                }
+                writer.close()
+            } catch (e: Exception) {
+                println("Error writing Miss Lola debug: ${e.message}")
+            }
+        }
+        
         // SPECIAL DEBUGGING for Kings Valley and Mr Monaco
         val isDebugHorse = horse.name.contains("KINGS VALLEY", ignoreCase = true) || 
                           horse.name.contains("MR MONACO", ignoreCase = true)
@@ -131,6 +167,22 @@ class ScoringEngine {
         val currentSpellStatus = getCurrentSpellStatus(horse, race.date, horseForm)
         val isReturningFromSpell = currentSpellStatus == "1ST_UP" || currentSpellStatus == "2ND_UP"
         
+        // DEBUG LOGGING for Miss Lola spell status
+        if (horse.name.contains("MISS LOLA", ignoreCase = true)) {
+            try {
+                val debugFile = File("/sdcard/Download/MISS_LOLA_COMPLETE_DEBUG.txt")
+                val writer = FileWriter(debugFile, true) // Append mode
+                writer.appendLine("SPELL STATUS DETECTION:")
+                writer.appendLine("  Current Spell Status: $currentSpellStatus")
+                writer.appendLine("  Is Returning From Spell: $isReturningFromSpell")
+                writer.appendLine("  Form String: ${horse.form}")
+                writer.appendLine("")
+                writer.close()
+            } catch (e: Exception) {
+                println("Error writing Miss Lola spell debug: ${e.message}")
+            }
+        }
+        
         // Check if this is a true first-starter (no historical races)
         val historicalRaces = filterHistoricalRaces(horseForm.last5Races, race.date)
         
@@ -153,7 +205,14 @@ class ScoringEngine {
                 // Calculate individual law scores based on current spell status
                 val firstUp = if (currentSpellStatus == "1ST_UP") calculateFirstUpScore(horseForm) else 0.0
                 val secondUp = if (currentSpellStatus == "2ND_UP") calculateSecondUpScore(horseForm) else 0.0
-                val secondUpRecentFormBonus = if (currentSpellStatus == "2ND_UP") calculateSecondUpRecentFormBonus(horseForm, race.date) else 0.0
+                val secondUpRecentFormBonus = if (currentSpellStatus == "2ND_UP") {
+                    val bonus = calculateSecondUpRecentFormBonus(horseForm, race.date)
+                    println("🔍 ${horse.name} - 2ND_UP Recent Form Bonus calculated: ${String.format("%.1f", bonus)}")
+                    bonus
+                } else {
+                    println("🔍 ${horse.name} - Not 2ND_UP (status: $currentSpellStatus), Recent Form Bonus: 0.0")
+                    0.0
+                }
                 val classSuitability = calculateClassSuitabilityScore(horse, race, horseForm) // Use historical class performance
                 // NEW: Split track/distance into 3 separate laws
                 val distanceSuccess = calculateDistanceSuccessScore(horse, race, horseForm) // Law 4
@@ -169,7 +228,28 @@ class ScoringEngine {
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = trackConditionSuccess // Use track condition success calculation
                 val weightAdvantage = calculateWeightAdvantageScore(horse, race.horses) // NEW LAW 13
-                val freshness = 0.0 // Spell horses don't get freshness bonus (they're already fresh from spell)
+                // CRITICAL FIX: Only 1ST_UP horses are "fresh from spell". 2ND_UP horses should get freshness based on their 1st up run
+                val freshness = if (currentSpellStatus == "1ST_UP") {
+                    0.0 // 1st up horses don't get freshness bonus (they're fresh from spell)
+                } else {
+                    calculateFreshnessScore(horseForm, race.date, horse.name) // 2nd up horses get normal freshness calculation
+                }
+                
+                // DEBUG LOGGING for Miss Lola freshness calculation
+                if (horse.name.contains("MISS LOLA", ignoreCase = true)) {
+                    try {
+                        val debugFile = File("/sdcard/Download/MISS_LOLA_COMPLETE_DEBUG.txt")
+                        val writer = FileWriter(debugFile, true) // Append mode
+                        writer.appendLine("FRESHNESS CALCULATION:")
+                        writer.appendLine("  Current Spell Status: $currentSpellStatus")
+                        writer.appendLine("  Freshness Score: $freshness")
+                        writer.appendLine("  Calculation Logic: ${if (currentSpellStatus == "1ST_UP") "1ST_UP = 0.0 (fresh from spell)" else "2ND_UP = calculateFreshnessScore()"}")
+                        writer.appendLine("")
+                        writer.close()
+                    } catch (e: Exception) {
+                        println("Error writing Miss Lola freshness debug: ${e.message}")
+                    }
+                }
                 
                 // Calculate total score (including second up recent form bonus and new laws)
                 val score = firstUp + secondUp + secondUpRecentFormBonus + classSuitability + 
@@ -289,7 +369,7 @@ class ScoringEngine {
                 val combination = jockeyHorseRelationship // Only jockey-horse relationship now
                 val trackCondition = trackConditionSuccess // Use track condition success calculation
                 val weightAdvantage = calculateWeightAdvantageScore(horse, race.horses) // NEW LAW 13
-                val freshness = calculateFreshnessScore(horseForm, race.date) // NEW LAW 14
+                val freshness = calculateFreshnessScore(horseForm, race.date, horse.name) // NEW LAW 14
                 
                 val totalScore = recentForm + classSuitability + 
                     distanceSuccess + trackSuccess + trackDistanceCombined + 
@@ -653,6 +733,24 @@ class ScoringEngine {
     private fun calculateSecondUpRecentFormBonus(horseForm: HorseForm, analysisDate: Date): Double {
         println("🔍 Law 2b: Starting Second Up Recent Form Bonus calculation")
         
+        // FILE LOGGING for debugging
+        try {
+            val logFile = File("/sdcard/Download/SECOND_UP_DEBUG_${horseForm.horseId.replace(" ", "_")}.txt")
+            val writer = FileWriter(logFile, false) // Overwrite mode
+            writer.appendLine("=" .repeat(80))
+            writer.appendLine("SECOND UP RECENT FORM BONUS DEBUG")
+            writer.appendLine("Horse ID: ${horseForm.horseId}")
+            writer.appendLine("Analysis Date: $analysisDate")
+            writer.appendLine("Total races in form: ${horseForm.last5Races.size}")
+            writer.appendLine("\nAll races BEFORE filtering:")
+            horseForm.last5Races.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
+        
         if (horseForm.last5Races.isEmpty()) {
             println("🏇 Law 2b: No recent races found - returning 0.0")
             return 0.0
@@ -660,6 +758,19 @@ class ScoringEngine {
         
         // CRITICAL FIX: Filter out races from today (analysis date) to avoid using today's results
         val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        // FILE LOGGING - after filtering
+        try {
+            val logFile = File("/sdcard/Download/SECOND_UP_DEBUG_${horseForm.horseId.replace(" ", "_")}.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            writer.appendLine("\nHistorical races AFTER filtering: ${historicalRaces.size}")
+            historicalRaces.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
         
         if (historicalRaces.isEmpty()) {
             println("⚠️ Law 2b: No historical races available after filtering today's races - returning 0.0")
@@ -669,14 +780,70 @@ class ScoringEngine {
         // CRITICAL FIX: Sort historical races by date (most recent first) because last5Races may not be in date order
         val sortedHistoricalRaces = historicalRaces.sortedByDescending { it.date }
         
+        // FILE LOGGING - after sorting
+        try {
+            val logFile = File("/sdcard/Download/SECOND_UP_DEBUG_${horseForm.horseId.replace(" ", "_")}.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            writer.appendLine("\nSorted historical races (most recent first):")
+            sortedHistoricalRaces.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.appendLine("\nLogic check:")
+            writer.appendLine("  sortedHistoricalRaces.size = ${sortedHistoricalRaces.size}")
+            writer.appendLine("  Needs >= 2 races? ${sortedHistoricalRaces.size >= 2}")
+            writer.appendLine("  Will use: ${if (sortedHistoricalRaces.size >= 2) "sortedHistoricalRaces[1]" else "sortedHistoricalRaces.firstOrNull()"}")
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
+        
         println("🏇 Law 2b: DEBUG - All historical races (UNSORTED): ${historicalRaces.map { "Pos:${it.position} Date:${it.date}" }}")
         println("🏇 Law 2b: DEBUG - All historical races (SORTED by date): ${sortedHistoricalRaces.map { "Pos:${it.position} Date:${it.date}" }}")
         
-        // For second up horses, we specifically look at their first-up run (most recent HISTORICAL race BY DATE)
-        val firstUpRun = sortedHistoricalRaces.firstOrNull()
+        // For second up horses, we specifically look at their first-up run (SECOND most recent HISTORICAL race BY DATE)
+        // The most recent race is their current 2nd up run, the second most recent is their 1st up run
+        val firstUpRun = if (sortedHistoricalRaces.size >= 2) {
+            sortedHistoricalRaces[1] // Second most recent race (first-up run)
+        } else {
+            sortedHistoricalRaces.firstOrNull() // Fallback to most recent if only one race
+        }
+        
         if (firstUpRun == null) {
             println("🏇 Law 2b: No first-up run data available - returning 0.0")
+            println("🔍 Law 2b DEBUG: sortedHistoricalRaces.size = ${sortedHistoricalRaces.size}")
             return 0.0
+        }
+        
+        println("🔍 Law 2b DEBUG: Found first-up run - Position: ${firstUpRun.position}, Date: ${firstUpRun.date}, Track: ${firstUpRun.track}")
+        
+        // FILE LOGGING for Miss Lola debugging
+        if (horseForm.horseId.contains("MISS LOLA", ignoreCase = true)) {
+            try {
+                val logFile = File("/sdcard/Download/MISS_LOLA_DEBUG.txt")
+                val writer = FileWriter(logFile, false) // Overwrite each time
+                writer.appendLine("=" .repeat(80))
+                writer.appendLine("MISS LOLA - Recent Form Bonus Debug")
+                writer.appendLine("=" .repeat(80))
+                writer.appendLine("Historical races count: ${historicalRaces.size}")
+                writer.appendLine("Sorted historical races count: ${sortedHistoricalRaces.size}")
+                writer.appendLine("\nAll Historical Races:")
+                historicalRaces.forEachIndexed { index, race ->
+                    writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+                }
+                writer.appendLine("\nSorted Historical Races:")
+                sortedHistoricalRaces.forEachIndexed { index, race ->
+                    writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+                }
+                writer.appendLine("\nFirst-Up Run Details:")
+                writer.appendLine("  Position: ${firstUpRun.position}")
+                writer.appendLine("  Date: ${firstUpRun.date}")
+                writer.appendLine("  Track: ${firstUpRun.track}")
+                writer.appendLine("  Margin: ${firstUpRun.margin}")
+                writer.close()
+                println("📝 Wrote Miss Lola debug to /sdcard/Download/MISS_LOLA_DEBUG.txt")
+            } catch (e: Exception) {
+                println("⚠️ Could not write Miss Lola debug file: ${e.message}")
+            }
         }
         
         var score = 0.0
@@ -1705,7 +1872,31 @@ class ScoringEngine {
      * Awards bonus for optimal time between runs
      * 2-4 weeks is ideal, backing up (<2 weeks) or too long (8+ weeks without being spell) penalized
      */
-    private fun calculateFreshnessScore(horseForm: HorseForm, analysisDate: Date): Double {
+    private fun calculateFreshnessScore(horseForm: HorseForm, analysisDate: Date, horseName: String = "Unknown"): Double {
+        // FILE LOGGING for debugging
+        try {
+            val logFile = File("/sdcard/Download/FRESHNESS_DEBUG.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            
+            // Add searchable header for easy finding
+            writer.appendLine("\n" + "=" .repeat(100))
+            writer.appendLine("FRESHNESS CALCULATION DEBUG - $horseName")
+            writer.appendLine("=" .repeat(100))
+            writer.appendLine("Horse Name: $horseName")
+            writer.appendLine("Horse ID: ${horseForm.horseId}")
+            writer.appendLine("Analysis Date: $analysisDate")
+            writer.appendLine("Total races in form: ${horseForm.last5Races.size}")
+            writer.appendLine("")
+            writer.appendLine("All races BEFORE filtering:")
+            horseForm.last5Races.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.appendLine("")
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
+        
         if (horseForm.last5Races.isEmpty()) {
             println("📅 Freshness - No race history available")
             return 0.0
@@ -1713,6 +1904,20 @@ class ScoringEngine {
         
         // CRITICAL FIX: Filter out races from today to avoid using today's results
         val historicalRaces = filterHistoricalRaces(horseForm.last5Races, analysisDate)
+        
+        // FILE LOGGING - after filtering
+        try {
+            val logFile = File("/sdcard/Download/FRESHNESS_DEBUG.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            writer.appendLine("Historical races AFTER filtering: ${historicalRaces.size}")
+            historicalRaces.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.appendLine("")
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
         
         if (historicalRaces.isEmpty()) {
             println("📅 Freshness - No historical races available after filtering today's races")
@@ -1722,6 +1927,22 @@ class ScoringEngine {
         // Sort by date to get the most recent historical race
         val sortedHistoricalRaces = historicalRaces.sortedByDescending { it.date }
         val lastRaceDate = sortedHistoricalRaces.firstOrNull()?.date
+        
+        // FILE LOGGING - final calculation
+        try {
+            val logFile = File("/sdcard/Download/FRESHNESS_DEBUG.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            writer.appendLine("Sorted historical races (most recent first):")
+            sortedHistoricalRaces.forEachIndexed { index, race ->
+                writer.appendLine("  Race ${index + 1}: Position=${race.position}, Date=${race.date}, Track=${race.track}")
+            }
+            writer.appendLine("")
+            writer.appendLine("Last race date: $lastRaceDate")
+            writer.appendLine("")
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
+        }
         
         if (lastRaceDate == null) {
             println("📅 Freshness - Last race date not available")
@@ -1736,6 +1957,20 @@ class ScoringEngine {
             daysSinceRun in 7..13 -> 0.0   // Backing up (1-2 weeks) - may be tired
             daysSinceRun < 7 -> 0.0        // Quick backup (<1 week) - likely tired
             else -> 0.0                     // Too long without being spell horse (handled separately)
+        }
+        
+        // FILE LOGGING - final result
+        try {
+            val logFile = File("/sdcard/Download/FRESHNESS_DEBUG.txt")
+            val writer = FileWriter(logFile, true) // Append mode
+            writer.appendLine("Final calculation:")
+            writer.appendLine("  Days since last run: $daysSinceRun")
+            writer.appendLine("  Score: $score points")
+            writer.appendLine("=" .repeat(100))
+            writer.appendLine("")
+            writer.close()
+        } catch (e: Exception) {
+            println("⚠️ Could not write to debug file: ${e.message}")
         }
         
         println("📅 Freshness - Days since last run: ${daysSinceRun}, Score: ${String.format("%.1f", score)} points")
@@ -1755,9 +1990,6 @@ class ScoringEngine {
             set(java.util.Calendar.MILLISECOND, 0)
         }.time
         
-        println("🗓️ RACE FILTER DEBUG: Analysis date = $analysisDate")
-        println("🗓️ RACE FILTER DEBUG: Analysis date (normalized) = $analysisDateOnly")
-        
         val filtered = races.filter { race ->
             race.date?.let { raceDate ->
                 val raceDateOnly = java.util.Calendar.getInstance().apply {
@@ -1768,22 +2000,16 @@ class ScoringEngine {
                     set(java.util.Calendar.MILLISECOND, 0)
                 }.time
                 
-                val isBefore = raceDateOnly.before(analysisDateOnly)
-                val isEqual = raceDateOnly.equals(analysisDateOnly)
-                
-                println("🗓️ RACE FILTER DEBUG: Race date = $raceDate, normalized = $raceDateOnly, isBefore = $isBefore, isEqual = $isEqual")
-                
                 // CRITICAL: Only include races that are STRICTLY BEFORE the analysis date
                 // This excludes races from the same day (today)
-                isBefore
-            } ?: run {
-                // CRITICAL FIX: Exclude races with null dates - these are likely today's results that failed to parse
-                println("🗓️ RACE FILTER DEBUG: Race has NULL date - EXCLUDING (likely today's result)")
-                false
-            }
+                raceDateOnly.before(analysisDateOnly)
+            } ?: true // FIXED: Include races with null dates - these are from form string parsing and are valid historical races
         }
         
-        println("🗓️ RACE FILTER: Original ${races.size} races, filtered to ${filtered.size} races (excluding races on/after ${analysisDate})")
+        if (filtered.size != races.size) {
+            println("🗓️ Filtered historical races: ${races.size} -> ${filtered.size} (excluded ${races.size - filtered.size} same-day/future races)")
+        }
+        
         return filtered
     }
     
